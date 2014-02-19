@@ -143,6 +143,9 @@
             this.Arena.Load += new System.EventHandler(this.Arena_Load);
             this.Arena.Paint += new System.Windows.Forms.PaintEventHandler(this.Arena_Paint);
             this.Arena.MouseClick += new System.Windows.Forms.MouseEventHandler(this.Arena_MouseClick);
+            this.Arena.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Arena_MouseDown);
+            this.Arena.MouseMove += new System.Windows.Forms.MouseEventHandler(this.Arena_MouseMove);
+            this.Arena.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Arena_MouseUp);
             this.Arena.Resize += new System.EventHandler(this.Arena_Resize);
             // 
             // debugText
