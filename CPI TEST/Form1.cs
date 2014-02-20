@@ -44,6 +44,14 @@ namespace CPI_TEST
         //END CAMERA CONTROL
 
 
+        //ANIMATION STUFF
+        Sculpture MAIN;
+        bool MAIN_Loaded = false;
+        public static bool animating = false;
+        double distance_per_second = 1.0;
+        public static double time_elapsed = 0;
+        double timer_start = 0;
+        //END ANIMATION STUFF
 
         float rotation = 0;
         int BaseDelay = 20;
@@ -76,8 +84,10 @@ namespace CPI_TEST
 
         private void Animate(double milliseconds)
         {
-            float deltaRotation = (float)milliseconds / 20.0f;
-            rotation += deltaRotation;
+            /*float deltaRotation = (float)milliseconds / 20.0f;
+            rotation += deltaRotation;*/
+            if (animating)
+                time_elapsed = time_elapsed + milliseconds;
             Arena.Invalidate();
         }
         double accumulator = 0;
@@ -105,30 +115,7 @@ namespace CPI_TEST
         {
             double milliseconds = ComputeTimeSlice();
             Accumulate(milliseconds);
-            Animate(milliseconds);            /*
-            sw.Stop();
-            double milliseconds = sw.Elapsed.TotalMilliseconds;
-            sw.Reset();
-            sw.Start();
-            Arena.Invalidate();
-             * */
-            /*
-            while (Arena.IsIdle)
-            {
-                GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-                GL.Rotate(1, 1, 1, 0);
-                foreach (Drawable item in Paths)
-                {
-                    RenderDrawable(item);
-                }
-                Arena.SwapBuffers();
-            }
-             * */
-            /*GL.MatrixMode(MatrixMode.Modelview);
-            GL.Rotate(rotate_angle,1, 1, 1);
-            rotate_angle += 0.1;
-            Invalidate();*/
-            //debugText.AppendText("!");
+            Animate(milliseconds);            
         }
         private void SetupViewport()
         {
@@ -162,13 +149,24 @@ namespace CPI_TEST
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadIdentity();
             GL.Scale(GlobalScale, GlobalScale, GlobalScale);
-            if(rotation_magnitude >0)
+            if(rotation_magnitude > 0)
                 GL.Rotate(rotation_magnitude, rotation_axis.X, rotation_axis.Y, rotation_axis.Z);
 
-            foreach (Drawable item in Paths)
+            if (MAIN_Loaded)
+            {
+                if (MainForm.animating)
+                {
+                    double distance=(time_elapsed + distance_per_second) / 1000;
+                    MAIN.Draw((time_elapsed + distance_per_second) / 1000);
+                    if (Math.Floor(time_elapsed) % 1000 == 0)
+                        debugText.AppendText("tick: " + distance + "\n");
+                }
+                
+            }
+            /*foreach (Drawable item in Paths)
             {
                 item.Render();
-            }
+            }*/
 
 
             Arena.SwapBuffers();
@@ -178,17 +176,22 @@ namespace CPI_TEST
         private void showButton_Click(object sender, EventArgs e)
         {
             DrawAlien();
+            MAIN = new Sculpture(Paths);
+            timer_start = 0;
+            MAIN_Loaded = true;
         }
         private void MoveHead(out Point3D HEAD_LOCATION, Point3D location)
         {
-            Paths.Add(new Dot(location.X, location.Y, location.Z));
+            //Paths.Add(new Dot(location.X, location.Y, location.Z));
             HEAD_LOCATION = location;
         }
         private void lineButton_Click(object sender, EventArgs e)
         {
             DrawSmile();
-            Arena.Invalidate();
-
+            MainForm.animating = true;
+            if (MainForm.animating) debugText.AppendText("FLIP");
+            MAIN = new Sculpture(Paths);
+            MAIN_Loaded = true;
         }
         private void DrawCircle()
         {
@@ -215,6 +218,7 @@ namespace CPI_TEST
         }
         private void G00(float x, float y, float z)
         {
+            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z)));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, z));
         }
         private void DrawAlien()
@@ -796,8 +800,6 @@ namespace CPI_TEST
                 double Angiterate = 0;
                 double Xiterate = 0;
                 double Yiterate = 0;
-                float centerX = 0;
-                float centerY = 0;
                 double Xoffset = 0;
                 double Yoffset = 0;
                 double radius = 0;
@@ -914,7 +916,6 @@ namespace CPI_TEST
                         Angiterate += DeltaAngle;
                     }
                 }
-                GL.End();
             }
         }
         private double DistanceBetweenPoints(Point3D a, Point3D b)
@@ -924,14 +925,21 @@ namespace CPI_TEST
 
         private void forwardButton_Click(object sender, EventArgs e)
         {
+            if (MAIN_Loaded)
+            {
+                debugText.AppendText("Total Length: " + MAIN.GetLength());
+            }
+            /*
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             rotate_angle += 1;
+             */
             /*
             foreach (Drawable item in Paths)
             {
                 RenderDrawable(item);
             }*/
-            Arena.SwapBuffers();
+
+            //Arena.SwapBuffers();
             /* THE REAL CODE HERE OK
             this.currentX = 0;
             this.currentY = 0;
@@ -991,6 +999,7 @@ namespace CPI_TEST
 
         private void Arena_MouseClick(object sender, MouseEventArgs e)
         {
+            //rotation_magnitude = 0;
             //ChangeScale(0.1F);
         }
 
@@ -1008,7 +1017,7 @@ namespace CPI_TEST
                 float dX = e.X - camera_anchor.X;
                 float dY = e.Y - camera_anchor.Y;
                 rotation_magnitude = (float)DistanceBetweenPoints(new Point3D(dX, dY, 0), new Point3D(0, 0, 0));
-                rotation_axis.X = -dY;
+                rotation_axis.X = dY;
                 rotation_axis.Y = dX;
             }
         }
@@ -1036,6 +1045,16 @@ namespace CPI_TEST
     {
         public Drawable() { }
         public virtual void Render() { }
+        public virtual void Render(double distance) { }
+        public virtual double GetLength() {
+            if(this is Arc)
+                throw new Exception("No length method defined for this! (Arc) " + this.GetType());
+            else if (this is LineSegment)
+                throw new Exception("No length method defined for this! (Line) " + this.GetType());
+            else
+                throw new Exception("No length method defined for this! (???) " + this.GetType());
+            return 0; 
+        }
     }
     public class Dot : Drawable
     {
@@ -1078,6 +1097,20 @@ namespace CPI_TEST
 
             GL.End();
 
+        }
+        public override void Render(double distance)
+        {
+            GL.Begin(PrimitiveType.Lines);
+            GL.Color3(Color.MidnightBlue);
+            GL.Vertex3(StartVertex.X, StartVertex.Y, StartVertex.Z);
+            GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
+
+            GL.End();
+
+        }
+        public override double GetLength()
+        {
+            return Math.Pow(Math.Pow(StartVertex.X - EndVertex.X, 2) + Math.Pow(StartVertex.Y - EndVertex.Y, 2) + Math.Pow(StartVertex.Z - EndVertex.Z, 2), 0.5);
         }
     }
     public class Arc : Drawable
@@ -1256,5 +1289,317 @@ namespace CPI_TEST
             }
             GL.End();
         }
+        public override void Render(double distance)
+        {
+            GL.Begin(PrimitiveType.LineStrip);
+            GL.Color3(Color.Wheat);
+            double Angstart = 0;
+            double Angfinish = 0;
+            double Angiterate = 0;
+            double Xiterate = 0;
+            double Yiterate = 0;
+            double Xoffset = 0;
+            double Yoffset = 0;
+            double radius = 0;
+            double Totalangle = 0;
+            double DeltaAngle = 0;
+
+            float X = StartVertex.X;
+            float Y = StartVertex.Y;
+            float Xcode = EndVertex.X;
+            float Ycode = EndVertex.Y;
+            float Icode = OffsetVertex.X;
+            float Jcode = OffsetVertex.Y;
+            if (incremental)
+            {
+                //Xcode += X;
+                //Ycode += Y;
+                Icode += X;
+                Jcode += Y;
+            }
+            Xoffset = X - Icode;
+            Yoffset = Y - Jcode;
+
+            if (Xoffset > 0 && Yoffset > 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset);
+            }
+            else if (Xoffset > 0 && Yoffset < 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset) + (2 * Math.PI);
+            }
+            else if (Xoffset < 0 && Yoffset <= 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset < 0 && Yoffset > 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset == 0 && Yoffset > 0)
+            {
+                Angstart = Math.PI / 2;
+            }
+            else if (Xoffset == 0 && Yoffset < 0)
+            {
+                Angstart = -Math.PI / 2;
+            }
+
+            Xoffset = Xcode - Icode;
+            Yoffset = Ycode - Jcode;
+
+            if (Xoffset > 0 && Yoffset > 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset);
+            }
+            else if (Xoffset > 0 && Yoffset < 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset) + (2 * Math.PI);
+            }
+            else if (Xoffset < 0 && Yoffset <= 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset < 0 && Yoffset > 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset == 0 && Yoffset > 0)
+            {
+                Angfinish = Math.PI / 2;
+            }
+            else if (Xoffset == 0 && Yoffset < 0)
+            {
+                Angfinish = -Math.PI / 2;
+            }
+
+            if (Angfinish < Angstart && !CW)
+            {
+                Angfinish += (2 * Math.PI);
+            }
+            else if (Angfinish > Angstart && CW)
+            {
+                Angfinish -= (2 * Math.PI);
+            }
+            radius = Math.Pow(Math.Pow(Yoffset, 2) + Math.Pow(Xoffset, 2), 0.5);
+
+            Totalangle = Angstart - Angfinish;
+
+            if (Totalangle < 0)
+                Totalangle += 2 * Math.PI;
+
+            DeltaAngle = Totalangle / ((2 * Math.PI * radius * (Totalangle / (2 * Math.PI))) / 0.0050);
+
+            Angiterate = Angstart;
+            Xiterate = X;
+            Yiterate = Y;
+            double completed = 0;
+            if (CW)
+            {
+                while (Angiterate > (Angfinish - DeltaAngle))
+                {
+                    double xtemp = Xiterate;
+                    double ytemp = Yiterate;
+                    Xiterate = (radius * Math.Cos(Angiterate)) + Icode;
+                    Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
+                    completed += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
+                    if (completed <= distance)
+                        GL.Vertex3(Xiterate, Yiterate, 0);
+                    Angiterate -= DeltaAngle;
+                }
+            }
+            else
+            {
+                while (Angiterate < (Angfinish - DeltaAngle))
+                {
+                    double xtemp = Xiterate;
+                    double ytemp = Yiterate;
+                    Xiterate = (radius * Math.Cos(Angiterate)) + Icode;
+                    Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
+                    completed += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
+                    if(completed<=distance)
+                        GL.Vertex3(Xiterate, Yiterate, 0);
+                    Angiterate += DeltaAngle;
+                }
+            }
+            GL.End();
+        }
+        public override double GetLength()
+        {
+            double Angstart = 0;
+            double Angfinish = 0;
+            double Angiterate = 0;
+            double Xiterate = 0;
+            double Yiterate = 0;
+            double Xoffset = 0;
+            double Yoffset = 0;
+            double radius = 0;
+            double Totalangle = 0;
+            double DeltaAngle = 0;
+
+            float X = StartVertex.X;
+            float Y = StartVertex.Y;
+            float Xcode = EndVertex.X;
+            float Ycode = EndVertex.Y;
+            float Icode = OffsetVertex.X;
+            float Jcode = OffsetVertex.Y;
+            if (incremental)
+            {
+                //Xcode += X;
+                //Ycode += Y;
+                Icode += X;
+                Jcode += Y;
+            }
+            Xoffset = X - Icode;
+            Yoffset = Y - Jcode;
+
+            if (Xoffset > 0 && Yoffset > 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset);
+            }
+            else if (Xoffset > 0 && Yoffset < 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset) + (2 * Math.PI);
+            }
+            else if (Xoffset < 0 && Yoffset <= 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset < 0 && Yoffset > 0)
+            {
+                Angstart = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset == 0 && Yoffset > 0)
+            {
+                Angstart = Math.PI / 2;
+            }
+            else if (Xoffset == 0 && Yoffset < 0)
+            {
+                Angstart = -Math.PI / 2;
+            }
+
+            Xoffset = Xcode - Icode;
+            Yoffset = Ycode - Jcode;
+
+            if (Xoffset > 0 && Yoffset > 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset);
+            }
+            else if (Xoffset > 0 && Yoffset < 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset) + (2 * Math.PI);
+            }
+            else if (Xoffset < 0 && Yoffset <= 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset < 0 && Yoffset > 0)
+            {
+                Angfinish = Math.Atan(Yoffset / Xoffset) + Math.PI;
+            }
+            else if (Xoffset == 0 && Yoffset > 0)
+            {
+                Angfinish = Math.PI / 2;
+            }
+            else if (Xoffset == 0 && Yoffset < 0)
+            {
+                Angfinish = -Math.PI / 2;
+            }
+
+            if (Angfinish < Angstart && !CW)
+            {
+                Angfinish += (2 * Math.PI);
+            }
+            else if (Angfinish > Angstart && CW)
+            {
+                Angfinish -= (2 * Math.PI);
+            }
+            radius = Math.Pow(Math.Pow(Yoffset, 2) + Math.Pow(Xoffset, 2), 0.5);
+
+            Totalangle = Angstart - Angfinish;
+
+            if (Totalangle < 0)
+                Totalangle += 2 * Math.PI;
+
+            DeltaAngle = Totalangle / ((2 * Math.PI * radius * (Totalangle / (2 * Math.PI))) / 0.0050);
+
+            Angiterate = Angstart;
+            Xiterate = X;
+            Yiterate = Y;
+            double ret = 0;
+            if (CW)
+            {
+                while (Angiterate > (Angfinish - DeltaAngle))
+                {
+                    double xtemp = Xiterate;
+                    double ytemp = Yiterate;
+                    Xiterate = (radius * Math.Cos(Angiterate)) + Icode;
+                    Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
+                    ret += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
+                    Angiterate -= DeltaAngle;
+                }
+            }
+            else
+            {
+                while (Angiterate < (Angfinish - DeltaAngle))
+                {
+                    double xtemp = Xiterate;
+                    double ytemp = Yiterate;
+                    Xiterate = (radius * Math.Cos(Angiterate)) + Icode;
+                    Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
+                    ret += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
+                    Angiterate += DeltaAngle;
+                }
+            }
+            return ret;
+        }
+    }
+    public class Sculpture
+    {
+        public IList<Drawable> elements;
+        public double total_drawn { get; set; }
+        public double item_length { get; set; }
+        public Sculpture() { }
+        public Sculpture(IList<Drawable> in_elements)
+        {
+            elements = in_elements;
+        }
+        
+        public void Draw()
+        {
+            foreach (Drawable item in elements)
+            {
+                item.Render();
+            }
+        }
+        public void Draw(double distance)
+        {
+            total_drawn = 0;
+            item_length = 0;
+            foreach (Drawable item in elements)
+            {
+                item_length = item.GetLength();
+                if (total_drawn + item_length < distance)
+                {
+                    item.Render();
+                    total_drawn += item_length;
+                }
+                    /*
+                else if (distance - total_drawn > 0)
+                {
+                    item.Render(distance - total_drawn);
+                }*/
+            }
+        }
+        public double GetLength()
+        {
+            double ret = 0;
+            foreach (Drawable item in elements)
+            {
+                ret += item.GetLength();
+            }
+            return ret;
+        }
+
     }
 }

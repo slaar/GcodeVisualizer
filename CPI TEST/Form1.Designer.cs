@@ -190,7 +190,7 @@
         private System.Windows.Forms.Button forwardButton;
         private System.Windows.Forms.Label debugOut;
         private OpenTK.GLControl Arena;
-        private System.Windows.Forms.RichTextBox debugText;
+        public System.Windows.Forms.RichTextBox debugText;
     }
 }
 
