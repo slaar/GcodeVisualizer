@@ -1564,14 +1564,14 @@ namespace CPI_TEST
         {
             elements = in_elements;
         }
-        
+        /*
         public void Draw()
         {
             foreach (Drawable item in elements)
             {
                 item.Render();
             }
-        }
+        }*/
         public void Draw(double distance)
         {
             total_drawn = 0;
@@ -1579,16 +1579,16 @@ namespace CPI_TEST
             foreach (Drawable item in elements)
             {
                 item_length = item.GetLength();
+                total_drawn += item_length;
                 if (total_drawn + item_length < distance)
                 {
                     item.Render();
-                    total_drawn += item_length;
                 }
-                    /*
+                    
                 else if (distance - total_drawn > 0)
                 {
                     item.Render(distance - total_drawn);
-                }*/
+                }
             }
         }
         public double GetLength()
