@@ -115,7 +115,7 @@ namespace CPI_TEST
         {
             double milliseconds = ComputeTimeSlice();
             Accumulate(milliseconds);
-            Animate(milliseconds);            
+            Animate(milliseconds);
         }
         private void SetupViewport()
         {
@@ -149,19 +149,19 @@ namespace CPI_TEST
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadIdentity();
             GL.Scale(GlobalScale, GlobalScale, GlobalScale);
-            if(rotation_magnitude > 0)
+            if (rotation_magnitude > 0)
                 GL.Rotate(rotation_magnitude, rotation_axis.X, rotation_axis.Y, rotation_axis.Z);
 
             if (MAIN_Loaded)
             {
                 if (MainForm.animating)
                 {
-                    double distance=(time_elapsed + distance_per_second) / 1000;
+                    double distance = (time_elapsed + distance_per_second) / 1000;
                     MAIN.Draw((time_elapsed + distance_per_second) / 1000);
                     if (Math.Floor(time_elapsed) % 1000 == 0)
                         debugText.AppendText("tick: " + distance + "\n");
                 }
-                
+
             }
             /*foreach (Drawable item in Paths)
             {
@@ -180,7 +180,7 @@ namespace CPI_TEST
             timer_start = 0;
             MAIN_Loaded = true;
         }
-        private void MoveHead(out Point3D HEAD_LOCATION, Point3D location)
+        public void MoveHead(out Point3D HEAD_LOCATION, Point3D location)
         {
             //Paths.Add(new Dot(location.X, location.Y, location.Z));
             HEAD_LOCATION = location;
@@ -774,7 +774,7 @@ namespace CPI_TEST
             {
                 LineSegment l = (LineSegment)item;
                 GL.Begin(PrimitiveType.Lines);
-                GL.Color3(Color.MidnightBlue);
+                GL.Color3(Color.BlueViolet);
                 GL.Vertex3(l.StartVertex.X, l.StartVertex.Y, l.StartVertex.Z);
                 GL.Vertex3(l.EndVertex.X, l.EndVertex.Y, l.EndVertex.Z);
 
@@ -1046,14 +1046,15 @@ namespace CPI_TEST
         public Drawable() { }
         public virtual void Render() { }
         public virtual void Render(double distance) { }
-        public virtual double GetLength() {
-            if(this is Arc)
+        public virtual double GetLength()
+        {
+            if (this is Arc)
                 throw new Exception("No length method defined for this! (Arc) " + this.GetType());
             else if (this is LineSegment)
                 throw new Exception("No length method defined for this! (Line) " + this.GetType());
             else
                 throw new Exception("No length method defined for this! (???) " + this.GetType());
-            return 0; 
+            return 0;
         }
     }
     public class Dot : Drawable
@@ -1091,7 +1092,7 @@ namespace CPI_TEST
         public override void Render()
         {
             GL.Begin(PrimitiveType.Lines);
-            GL.Color3(Color.MidnightBlue);
+            GL.Color3(Color.BlueViolet);
             GL.Vertex3(StartVertex.X, StartVertex.Y, StartVertex.Z);
             GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
 
@@ -1101,9 +1102,23 @@ namespace CPI_TEST
         public override void Render(double distance)
         {
             GL.Begin(PrimitiveType.Lines);
-            GL.Color3(Color.MidnightBlue);
-            GL.Vertex3(StartVertex.X, StartVertex.Y, StartVertex.Z);
-            GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
+            GL.Color3(Color.BlueViolet);
+            double total_drawn = 0;
+            int max_verts = 30;
+            double Xstep = (EndVertex.X - StartVertex.X) / max_verts;
+            double Ystep = (EndVertex.Y - StartVertex.Y) / max_verts;
+            double interval = Math.Pow(Math.Pow(Xstep, 2) + Math.Pow(Ystep, 2), 0.5);
+            double endX = StartVertex.X;
+            double endY = StartVertex.Y;
+            GL.Vertex3(endX, endY, StartVertex.Z);
+            while (total_drawn <= distance)
+            {
+                endX += Xstep;
+                endY += Ystep;
+                total_drawn += interval;
+            }
+            GL.Vertex3(endX, endY, StartVertex.Z);
+            //GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
 
             GL.End();
 
@@ -1417,7 +1432,7 @@ namespace CPI_TEST
                     Xiterate = (radius * Math.Cos(Angiterate)) + Icode;
                     Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
                     completed += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
-                    if(completed<=distance)
+                    if (completed <= distance)
                         GL.Vertex3(Xiterate, Yiterate, 0);
                     Angiterate += DeltaAngle;
                 }
@@ -1578,17 +1593,20 @@ namespace CPI_TEST
             item_length = 0;
             foreach (Drawable item in elements)
             {
+                bool drawn = false;
                 item_length = item.GetLength();
-                total_drawn += item_length;
                 if (total_drawn + item_length < distance)
                 {
+                    drawn = true;
                     item.Render();
                 }
-                    
                 else if (distance - total_drawn > 0)
                 {
                     item.Render(distance - total_drawn);
+                    total_drawn = distance;
                 }
+                if(drawn)
+                    total_drawn += item_length;
             }
         }
         public double GetLength()
