@@ -1045,7 +1045,7 @@ namespace CPI_TEST
     {
         public Drawable() { }
         public virtual void Render() { }
-        public virtual void Render(double distance) { }
+        public virtual Point3D Render(double distance) { return new Point3D(0, 0, 0); }
         public virtual double GetLength()
         {
             if (this is Arc)
@@ -1099,7 +1099,7 @@ namespace CPI_TEST
             GL.End();
 
         }
-        public override void Render(double distance)
+        public override Point3D Render(double distance)
         {
             GL.Begin(PrimitiveType.Lines);
             GL.Color3(Color.BlueViolet);
@@ -1121,6 +1121,8 @@ namespace CPI_TEST
             //GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
 
             GL.End();
+            Point3D ret = new Point3D((float)endX, (float)endY, (float)StartVertex.Z);
+            return ret;
 
         }
         public override double GetLength()
@@ -1304,7 +1306,7 @@ namespace CPI_TEST
             }
             GL.End();
         }
-        public override void Render(double distance)
+        public override Point3D Render(double distance)
         {
             GL.Begin(PrimitiveType.LineStrip);
             GL.Color3(Color.Wheat);
@@ -1409,6 +1411,7 @@ namespace CPI_TEST
             Xiterate = X;
             Yiterate = Y;
             double completed = 0;
+            float retx = 0; float rety = 0;float retz = 0;
             if (CW)
             {
                 while (Angiterate > (Angfinish - DeltaAngle))
@@ -1419,7 +1422,12 @@ namespace CPI_TEST
                     Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
                     completed += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
                     if (completed <= distance)
+                    {
                         GL.Vertex3(Xiterate, Yiterate, 0);
+                        retx = (float)Xiterate;
+                        rety = (float)Yiterate;
+                        retz = 0;
+                    }
                     Angiterate -= DeltaAngle;
                 }
             }
@@ -1433,11 +1441,19 @@ namespace CPI_TEST
                     Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
                     completed += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
                     if (completed <= distance)
+                    {
                         GL.Vertex3(Xiterate, Yiterate, 0);
+                        retx = (float)Xiterate;
+                        rety = (float)Yiterate;
+                        retz = 0;
+                    }
                     Angiterate += DeltaAngle;
                 }
             }
             GL.End();
+            Point3D ret = new Point3D(retx, rety, retz);
+            return ret;
+
         }
         public override double GetLength()
         {
@@ -1587,6 +1603,20 @@ namespace CPI_TEST
                 item.Render();
             }
         }*/
+        private void DrawTool(Point3D loc)
+        {
+            float width = 0.2F;
+            GL.Begin(PrimitiveType.Lines);
+            GL.Color3(Color.Red);
+            GL.Vertex3(loc.X - width, loc.Y, loc.Z);
+            GL.Vertex3(loc.X + width, loc.Y, loc.Z);
+            GL.End();
+            GL.Begin(PrimitiveType.Lines);
+            GL.Color3(Color.Red);
+            GL.Vertex3(loc.X, loc.Y - width, loc.Z);
+            GL.Vertex3(loc.X, loc.Y + width, loc.Z);
+            GL.End();
+        }
         public void Draw(double distance)
         {
             total_drawn = 0;
@@ -1602,8 +1632,9 @@ namespace CPI_TEST
                 }
                 else if (distance - total_drawn > 0)
                 {
-                    item.Render(distance - total_drawn);
+                    Point3D hl = item.Render(distance - total_drawn);
                     total_drawn = distance;
+                    DrawTool(hl);
                 }
                 if(drawn)
                     total_drawn += item_length;
