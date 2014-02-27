@@ -34,7 +34,7 @@ namespace CPI_TEST
         public float currentX;
         public float currentY;
         public float currentZ;
-
+        public int speed = 1;
         //CAMERA CONTROL STUFF
         bool adjusting_camera = false;
         double rotate_angle = 0;
@@ -48,7 +48,7 @@ namespace CPI_TEST
         Sculpture MAIN;
         bool MAIN_Loaded = false;
         public static bool animating = false;
-        double distance_per_second = 1.0;
+        double distance_per_second = 0.0;
         public static double time_elapsed = 0;
         double timer_start = 0;
         //END ANIMATION STUFF
@@ -156,10 +156,15 @@ namespace CPI_TEST
             {
                 if (MainForm.animating)
                 {
-                    double distance = (time_elapsed + distance_per_second) / 1000;
-                    MAIN.Draw((time_elapsed + distance_per_second) / 1000);
+                    int rate = 1100 - (speed * 100);
+                    double distance = (time_elapsed) / rate;
+                    MAIN.Draw((time_elapsed) / rate);
                     if (Math.Floor(time_elapsed) % 1000 == 0)
                         debugText.AppendText("tick: " + distance + "\n");
+                }
+                else
+                {
+                    MAIN.Draw();
                 }
 
             }
@@ -176,8 +181,9 @@ namespace CPI_TEST
         private void showButton_Click(object sender, EventArgs e)
         {
             DrawAlien();
+            MainForm.animating = true;
+            if (MainForm.animating) debugText.AppendText("FLIP");
             MAIN = new Sculpture(Paths);
-            timer_start = 0;
             MAIN_Loaded = true;
         }
         public void MoveHead(out Point3D HEAD_LOCATION, Point3D location)
@@ -203,22 +209,32 @@ namespace CPI_TEST
         }
         private void G01(float x, float y, float z)
         {
-            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z)));
-            MoveHead(out HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z));
+            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z), Color.White));
+            MoveHead(out HEAD_LOCATION, new Point3D(x, y, z));
         }
-        private void G02(float x, float y, float i, float j)
+        private bool G02(float x, float y, float i, float j)
         {
+            int prev = Paths.Count();
             Paths.Add(new Arc(HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z), new Point3D(i, j, HEAD_LOCATION.Z), 'Z', true));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z));
+            if (prev < Paths.Count())
+                return true;
+            else
+                return false;
         }
-        private void G03(float x, float y, float i, float j)
+        private bool G03(float x, float y, float i, float j)
         {
+            int prev = Paths.Count();
             Paths.Add(new Arc(HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z), new Point3D(i, j, HEAD_LOCATION.Z), 'Z', false));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z));
+            if (prev < Paths.Count())
+                return true;
+            else
+                return false;
         }
         private void G00(float x, float y, float z)
         {
-            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z)));
+            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z), Color.Black));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, z));
         }
         private void DrawAlien()
@@ -651,6 +667,7 @@ namespace CPI_TEST
         {
             if (LoadGCODEFile.ShowDialog() == DialogResult.OK)
             {
+                /*
                 foreach (KeyValuePair<int, IList<string>> entry in TempCodes)
                 {
                     string entryValue = entry.Key.ToString() + ": ";
@@ -660,24 +677,53 @@ namespace CPI_TEST
                     }
                     debugText.AppendText(entryValue + "\n");
                 }
-                /*
+                */
+                MoveHead(out HEAD_LOCATION, new Point3D(0, 0, 0));
                 System.IO.StreamReader file = new System.IO.StreamReader(LoadGCODEFile.FileName);
+                GCODECommands.Clear();
                 string line;
                 IList<string> parsedLine;
                 int counter = 0;
-                debugText.ScrollBars = ScrollBars.Vertical;
+                debugText.ScrollBars = RichTextBoxScrollBars.Vertical;
                 while ((line = file.ReadLine()) != null)
                 {
-                    if(line[0] == 'G'){
+                    if (line[0] == 'G')
+                    {
                         parsedLine = line.Split(' ').ToList<string>();
                         string debugNum = counter.ToString();
                         //debugText.Text = debugNum;
                         GCODECommands.Add(counter, parsedLine);
-                        debugText.AppendText(debugNum + ": " + line + "\n");
+                        //debugText.AppendText(debugNum + ": " + line + "\n");
                         counter++;
                     }
                 }
                 file.Close();
+                Paths.Clear();
+                foreach (KeyValuePair<int, IList<string>> cmd in GCODECommands)
+                {
+                    HandleGCODE(cmd.Value);
+                }
+                MainForm.animating = false;
+                MAIN = new Sculpture(Paths);
+                MAIN_Loaded = true;
+                //Paths.Clear();
+                //DrawSmile();
+                //Sculpture MAIN2 = new Sculpture(Paths);
+                //MAIN = new Sculpture(Paths);
+                IList<string> ColumnA = new List<string>();
+                //IList<string> ColumnB = new List<string>();
+                ColumnA = MAIN.ListElements();
+                //ColumnB = MAIN2.ListElements();
+                for (int i = 0; i < MAIN.CountElements(); i++)
+                {
+                    debugText.AppendText(ColumnA[i]);
+                }
+                /*
+                foreach (Drawable D in Paths)
+                {
+                    D.Render();
+                    debugText.AppendText(D.GetType() + "\n");
+                }
                  */
                 //string debugNum = counter.ToString();
                 //debugText.Text = debugNum;
@@ -712,7 +758,9 @@ namespace CPI_TEST
                 }
                 else if (bit[0] == 'Y')
                 {
-                    y_component = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                    //y_component = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                    y_component = Convert.ToSingle(bit.Substring(1));
+                    //debugText.AppendText("AA " + bit.Substring(1) + ":" + String.Format("{0:F6}",double.Parse("-0.000028")) + "\n");
                     args.Add("Y", y_component);
                 }
                 else if (bit[0] == 'Z')
@@ -735,9 +783,108 @@ namespace CPI_TEST
                     k_component = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
                     args.Add("K", k_component);
                 }
+                else if (bit[0] == 'G')
+                {
+                    which = bit;
+                }
             }
-            debugText.Clear();
+            if (which == "G90")
+            {
+                incremental = true;  //this is a lie, change it later
+            }
+            else if (which == "G00")
+            {
+                float x, y, z;
+                x = HEAD_LOCATION.X; y = HEAD_LOCATION.Y; z = HEAD_LOCATION.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                G00(x, y, 0.01F);
+                //debugText.AppendText(which + " " + x + " " + y + " " + z + "\n");
+
+            }
+            else if (which == "G01")
+            {
+                float x, y, z;
+                x = HEAD_LOCATION.X; y = HEAD_LOCATION.Y; z = HEAD_LOCATION.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                G01(x, y, 0.01F);
+                //debugText.AppendText(which + " " + x + " " + y + " " + z + "\n");
+            }
+            else if (which == "G02")
+            {
+                float x, y, z, i, j, k;
+                x = HEAD_LOCATION.X; y = HEAD_LOCATION.Y; z = HEAD_LOCATION.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                if (args.ContainsKey("I") && args.ContainsKey("J"))
+                {
+                    if (G02(x, y, args["I"], args["J"]))
+                    {
+                        // debugText.AppendText("G02 added\n");
+                    }
+                    //debugText.AppendText(which + " " + x + " " + y + " " + z + " " + args["I"] + " " + args["J"] + "\n");
+                }
+            }
+            else if (which == "G03")
+            {
+                float x, y, z, i, j, k;
+                x = HEAD_LOCATION.X; y = HEAD_LOCATION.Y; z = HEAD_LOCATION.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                if (args.ContainsKey("I") && args.ContainsKey("J"))
+                {
+                    if (G03(x, y, args["I"], args["J"]))
+                    {
+                        //debugText.AppendText("G03 added\n");
+                    }
+                    //debugText.AppendText(which + " " + x + " " + y + " " + z + " " + args["I"] + " " + args["J"] + "\n");
+                }
+            }
+            //debugText.Clear();
             //drawArea.Image = null;
+
+            /* FOR LATER
             int local_index = 0;
             foreach (KeyValuePair<int, IList<string>> entry in TempCodes)
             {
@@ -764,6 +911,8 @@ namespace CPI_TEST
                 debugText.AppendText(entryValue + "\n");
                 local_index++;
             }
+            */
+
             //debugText.AppendText("Executed up to command " + index + "\n");
 
             //debugText.AppendText(local_index.ToString() + " " + index.ToString());
@@ -1026,6 +1175,54 @@ namespace CPI_TEST
         {
             adjusting_camera = false;
         }
+
+        private void FasterButton_Click(object sender, EventArgs e)
+        {
+            if (speed < 10)
+            {
+                int temp_rate = 1100 - (speed * 100);
+                double distance = (time_elapsed) / temp_rate;
+                speed += 1;
+                temp_rate = 1100 - (speed * 100);
+                time_elapsed = (float)((temp_rate) * distance);
+            }
+        }
+
+        private void SlowerButton_Click(object sender, EventArgs e)
+        {
+            if (speed > 0)
+            {
+                int temp_rate = 1100 - (speed * 100);
+                double distance = (time_elapsed) / temp_rate;
+                speed -= 1;
+                temp_rate = 1100 - (speed * 100);
+                time_elapsed = (float)((temp_rate) * distance);
+            }
+        }
+
+        private void BackUp_Click(object sender, EventArgs e)
+        {
+            double time_to_draw_complete_sculpture = MAIN.GetLength() * (1100 - (speed * 100));
+            double five_percent = time_to_draw_complete_sculpture / 20;
+            time_elapsed -= five_percent;
+        }
+
+        private void Draw_Click(object sender, EventArgs e)
+        {
+            if (Paths.Count() > 0)
+            {
+                MainForm.time_elapsed = 0;
+                MainForm.animating = true;
+                if (MainForm.animating) debugText.AppendText("FLIP");
+                MAIN = new Sculpture(Paths);
+                MAIN_Loaded = true;
+            }
+        }
+
+        private void ResetView_Click(object sender, EventArgs e)
+        {
+            rotation_magnitude = 0;
+        }
     }
 
     public class Point3D
@@ -1074,6 +1271,7 @@ namespace CPI_TEST
     {
         public Point3D StartVertex { get; set; }
         public Point3D EndVertex { get; set; }
+        public System.Drawing.Color dColor=Color.BlueViolet;
         public LineSegment() { }
         public LineSegment(float x1, float y1, float z1, float x2, float y2, float z2)
         {
@@ -1089,10 +1287,16 @@ namespace CPI_TEST
             StartVertex = Start;
             EndVertex = End;
         }
+        public LineSegment(Point3D Start, Point3D End, System.Drawing.Color in_Color)
+        {
+            dColor = in_Color;
+            StartVertex = Start;
+            EndVertex = End;
+        }
         public override void Render()
         {
             GL.Begin(PrimitiveType.Lines);
-            GL.Color3(Color.BlueViolet);
+            GL.Color3(dColor);
             GL.Vertex3(StartVertex.X, StartVertex.Y, StartVertex.Z);
             GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
 
@@ -1102,9 +1306,9 @@ namespace CPI_TEST
         public override Point3D Render(double distance)
         {
             GL.Begin(PrimitiveType.Lines);
-            GL.Color3(Color.BlueViolet);
+            GL.Color3(dColor);
             double total_drawn = 0;
-            int max_verts = 30;
+            int max_verts = (int)Math.Floor((GetLength() * 100));
             double Xstep = (EndVertex.X - StartVertex.X) / max_verts;
             double Ystep = (EndVertex.Y - StartVertex.Y) / max_verts;
             double interval = Math.Pow(Math.Pow(Xstep, 2) + Math.Pow(Ystep, 2), 0.5);
@@ -1139,7 +1343,7 @@ namespace CPI_TEST
         public char Axis { get; set; }
         //public Point3D CenterVertex { get; set; }
         public bool CW { get; set; }
-        public bool incremental;
+        public bool incremental { get; set; }
         public Arc() { }
         /*public Arc(float x1, float y1, float z1, float cx, float cy, float cz, bool clockwise) // TODO - fix this dumb constructor
         {
@@ -1290,7 +1494,7 @@ namespace CPI_TEST
                 {
                     Xiterate = (radius * Math.Cos(Angiterate)) + Icode;
                     Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
-                    GL.Vertex3(Xiterate, Yiterate, 0);
+                    GL.Vertex3(Xiterate, Yiterate, StartVertex.Z);
                     Angiterate -= DeltaAngle;
                 }
             }
@@ -1300,7 +1504,7 @@ namespace CPI_TEST
                 {
                     Xiterate = (radius * Math.Cos(Angiterate)) + Icode;
                     Yiterate = (radius * Math.Sin(Angiterate)) + Jcode;
-                    GL.Vertex3(Xiterate, Yiterate, 0);
+                    GL.Vertex3(Xiterate, Yiterate, StartVertex.Z);
                     Angiterate += DeltaAngle;
                 }
             }
@@ -1411,7 +1615,7 @@ namespace CPI_TEST
             Xiterate = X;
             Yiterate = Y;
             double completed = 0;
-            float retx = 0; float rety = 0;float retz = 0;
+            float retx = 0; float rety = 0; float retz = 0;
             if (CW)
             {
                 while (Angiterate > (Angfinish - DeltaAngle))
@@ -1423,10 +1627,10 @@ namespace CPI_TEST
                     completed += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
                     if (completed <= distance)
                     {
-                        GL.Vertex3(Xiterate, Yiterate, 0);
+                        GL.Vertex3(Xiterate, Yiterate, StartVertex.Z);
                         retx = (float)Xiterate;
                         rety = (float)Yiterate;
-                        retz = 0;
+                        retz = StartVertex.Z;
                     }
                     Angiterate -= DeltaAngle;
                 }
@@ -1442,10 +1646,10 @@ namespace CPI_TEST
                     completed += Math.Pow(Math.Pow(xtemp - Xiterate, 2) + Math.Pow(ytemp - Yiterate, 2), 0.5);
                     if (completed <= distance)
                     {
-                        GL.Vertex3(Xiterate, Yiterate, 0);
+                        GL.Vertex3(Xiterate, Yiterate, StartVertex.Z);
                         retx = (float)Xiterate;
                         rety = (float)Yiterate;
-                        retz = 0;
+                        retz = StartVertex.Z;
                     }
                     Angiterate += DeltaAngle;
                 }
@@ -1605,7 +1809,41 @@ namespace CPI_TEST
         }*/
         private void DrawTool(Point3D loc)
         {
-            float width = 0.2F;
+            float width = 0.08F;
+            int i, j;
+            int lats = 10;
+            int longs = 10;
+
+            for (i = 0; i <= lats; i++)
+            {
+                double lat0 = Math.PI * (-0.5 + (double)(i - 1) / lats);
+                double z0 = Math.Sin(lat0);
+                double zr0 = Math.Cos(lat0) * width;
+
+                double lat1 = Math.PI * (-0.5 + (double)i / lats);
+                double z1 = Math.Sin(lat1);
+                double zr1 = Math.Cos(lat1) * width;
+
+                GL.Begin(PrimitiveType.QuadStrip);
+                GL.Color3(Color.Red);
+                for (j = 0; j <= longs; j++)
+                {
+                    double lng = 2 * Math.PI * (double)(j - 1) / longs;
+                    double x = Math.Cos(lng);
+                    double y = Math.Sin(lng);
+
+                    GL.Normal3((x * zr0) + loc.X, (y * zr0) + loc.Y, z0 * width);
+                    GL.Vertex3((x * zr0) + loc.X, (y * zr0) + loc.Y, z0 * width);
+                    GL.Normal3((x * zr1) + loc.X, (y * zr1) + loc.Y, z1 * width);
+                    GL.Vertex3((x * zr1) + loc.X, (y * zr1) + loc.Y, z1 * width);
+                }
+                GL.End();
+            }
+            GL.Begin(PrimitiveType.Lines);
+            GL.Vertex3(loc.X, loc.Y, loc.Z);
+            GL.Vertex3(loc.X, loc.Y, loc.Z+0.5);
+            GL.End();
+            /*
             GL.Begin(PrimitiveType.Lines);
             GL.Color3(Color.Red);
             GL.Vertex3(loc.X - width, loc.Y, loc.Z);
@@ -1616,6 +1854,41 @@ namespace CPI_TEST
             GL.Vertex3(loc.X, loc.Y - width, loc.Z);
             GL.Vertex3(loc.X, loc.Y + width, loc.Z);
             GL.End();
+             */
+        }
+        public IList<string> ListElements()
+        {
+            IList<string> ret = new List<string>();
+            string t = "";
+            foreach (Drawable item in elements)
+            {
+                t = "";
+                Arc TEMPARC;
+                LineSegment TEMPLINE;
+                t += item.GetType() + ": ";
+                if (item is Arc)
+                {
+                    TEMPARC = (Arc)item;
+                    if (TEMPARC.CW) { t += "G02 "; }
+                    else { t += "G03 "; }
+                    t += " X: " + TEMPARC.StartVertex.X + " Y: " + TEMPARC.StartVertex.Y + " I: " + TEMPARC.OffsetVertex.X + " J: " + TEMPARC.OffsetVertex.Y + "\n";
+                }
+                else if (item is LineSegment)
+                {
+                    TEMPLINE = (LineSegment)item;
+                    t += " X: " + TEMPLINE.EndVertex.X + " Y: " + TEMPLINE.EndVertex.Y + " Z: " + TEMPLINE.EndVertex.Z + "\n";
+                }
+                ret.Add(t);
+            }
+            return ret;
+
+        }
+        public void Draw()
+        {
+            foreach (Drawable item in elements)
+            {
+                item.Render();
+            }
         }
         public void Draw(double distance)
         {
@@ -1636,9 +1909,13 @@ namespace CPI_TEST
                     total_drawn = distance;
                     DrawTool(hl);
                 }
-                if(drawn)
+                if (drawn)
                     total_drawn += item_length;
             }
+        }
+        public int CountElements()
+        {
+            return elements.Count();
         }
         public double GetLength()
         {
