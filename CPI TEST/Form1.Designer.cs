@@ -41,6 +41,7 @@
             this.Arena = new OpenTK.GLControl();
             this.debugText = new System.Windows.Forms.RichTextBox();
             this.LoadGCODEFile = new System.Windows.Forms.OpenFileDialog();
+            this.TestButton = new System.Windows.Forms.Button();
             this.tableLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel3.SuspendLayout();
@@ -68,6 +69,7 @@
             this.flowLayoutPanel1.Controls.Add(this.loadButton);
             this.flowLayoutPanel1.Controls.Add(this.Draw);
             this.flowLayoutPanel1.Controls.Add(this.flowLayoutPanel3);
+            this.flowLayoutPanel1.Controls.Add(this.TestButton);
             this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flowLayoutPanel1.Location = new System.Drawing.Point(3, 366);
             this.flowLayoutPanel1.Name = "flowLayoutPanel1";
@@ -187,6 +189,16 @@
             this.LoadGCODEFile.Filter = "GCODE files (*.NC)|*.NC|All files (*.*)|*.*";
             this.LoadGCODEFile.FileOk += new System.ComponentModel.CancelEventHandler(this.LoadGCODEFile_FileOk);
             // 
+            // TestButton
+            // 
+            this.TestButton.Location = new System.Drawing.Point(371, 3);
+            this.TestButton.Name = "TestButton";
+            this.TestButton.Size = new System.Drawing.Size(75, 23);
+            this.TestButton.TabIndex = 6;
+            this.TestButton.Text = "TEST";
+            this.TestButton.UseVisualStyleBackColor = true;
+            this.TestButton.Click += new System.EventHandler(this.TestButton_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -218,6 +230,7 @@
         private System.Windows.Forms.Button BackUp;
         private System.Windows.Forms.Button Draw;
         private System.Windows.Forms.Button ResetView;
+        private System.Windows.Forms.Button TestButton;
     }
 }
 
