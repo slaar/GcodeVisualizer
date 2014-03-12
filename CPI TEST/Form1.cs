@@ -237,7 +237,7 @@ namespace CPI_TEST
 
         private void G00(float x, float y, float z)
         {
-            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z), Color.BlueViolet));
+            Paths.Add(new HeadMotion(HEAD_LOCATION, new Point3D(x, y, z)));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, z));
         }
         private void DrawAlien()
@@ -727,6 +727,44 @@ namespace CPI_TEST
             }
         }
 
+        private void DrawSphere(Point3D loc)
+        {
+            float width = 0.08F;
+            int i, j;
+            int lats = 10;
+            int longs = 10;
+
+            for (i = 0; i <= lats; i++)
+            {
+                double lat0 = Math.PI * (-0.5 + (double)(i - 1) / lats);
+                double z0 = Math.Sin(lat0);
+                double zr0 = Math.Cos(lat0) * width;
+
+                double lat1 = Math.PI * (-0.5 + (double)i / lats);
+                double z1 = Math.Sin(lat1);
+                double zr1 = Math.Cos(lat1) * width;
+
+                GL.Begin(PrimitiveType.QuadStrip);
+                GL.Color3(Color.Red);
+                for (j = 0; j <= longs; j++)
+                {
+                    double lng = 2 * Math.PI * (double)(j - 1) / longs;
+                    double x = Math.Cos(lng);
+                    double y = Math.Sin(lng);
+
+                    GL.Normal3((x * zr0) + loc.X, (y * zr0) + loc.Y, z0 * width);
+                    GL.Vertex3((x * zr0) + loc.X, (y * zr0) + loc.Y, z0 * width);
+                    GL.Normal3((x * zr1) + loc.X, (y * zr1) + loc.Y, z1 * width);
+                    GL.Vertex3((x * zr1) + loc.X, (y * zr1) + loc.Y, z1 * width);
+                }
+                GL.End();
+            }
+            GL.Begin(PrimitiveType.Lines);
+            GL.Vertex3(loc.X, loc.Y, loc.Z);
+            GL.Vertex3(loc.X, loc.Y, loc.Z + 0.5);
+            GL.End();
+        }
+
         private void debugText_TextChanged(object sender, EventArgs e)
         {
 
@@ -741,46 +779,54 @@ namespace CPI_TEST
             float iComponent;
             float jComponent;
             float kComponent;
+            var CommentMarker = cmd.IndexOf(";");
+            var OpenParen = cmd.IndexOf("(");
+            var CloseParen = cmd.IndexOf(")");
             int index = this.index;
             Dictionary<string, float> args = new Dictionary<string, float>();
             foreach (var bit in cmd)
             {
-                if (bit[0] == 'X')
+                if (bit.Count() > 0 && (CommentMarker < 0 || cmd.IndexOf(bit) < CommentMarker) && (OpenParen < 0 || cmd.IndexOf(bit) < OpenParen))
                 {
-                    xComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                    args.Add("X", xComponent);
+                    if (bit[0] == 'X')
+                    {
+                        xComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("X", xComponent);
+                    }
+                    else if (bit[0] == 'Y')
+                    {
+                        yComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("Y", yComponent);
+                    }
+                    else if (bit[0] == 'Z')
+                    {
+                        zComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("Z", zComponent);
+                    }
+                    else if (bit[0] == 'I')
+                    {
+                        iComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("I", iComponent);
+                    }
+                    else if (bit[0] == 'J')
+                    {
+                        jComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("J", jComponent);
+                    }
+                    else if (bit[0] == 'K')
+                    {
+                        kComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("K", kComponent);
+                    }
+                    else if (bit[0] == 'G' && (bit[1] == '0' || bit[1] == '1' || bit[1] == '2' || bit[1] == '3'))
+                    {
+                        which = bit;
+                    }
+                    else if (bit == "G90")
+                        incremental = false;  //this is true but you know how it is
+                    else if (bit == "G91")
+                        incremental = true;  //this is true but you know how it is
                 }
-                else if (bit[0] == 'Y')
-                {
-                    yComponent = Convert.ToSingle(bit.Substring(1));
-                    args.Add("Y", yComponent);
-                }
-                else if (bit[0] == 'Z')
-                {
-                    zComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                    args.Add("Z", zComponent);
-                }
-                else if (bit[0] == 'I')
-                {
-                    iComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                    args.Add("I", iComponent);
-                }
-                else if (bit[0] == 'J')
-                {
-                    jComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                    args.Add("J", jComponent);
-                }
-                else if (bit[0] == 'K')
-                {
-                    kComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                    args.Add("K", kComponent);
-                }
-                else if (bit[0] == 'G' && (bit[1] == '0' || bit[1] == '1' || bit[1] == '2' || bit[1] == '3'))
-                {
-                    which = bit;
-                }
-                else if (bit == "G90")
-                    incremental = true;  //this is true but you know how it is
             }
             if (which == "")
             {
@@ -806,7 +852,7 @@ namespace CPI_TEST
                 if (x == HEAD_LOCATION.X && y == HEAD_LOCATION.Y && z == HEAD_LOCATION.Z)
                     return;
                 else
-                    G00(x, y, 0.01F);  //Z-PROBLEM
+                    G00(x, y, z);  //Z-PROBLEM
                 //debugText.AppendText(which + " " + x + " " + y + " " + z + "\n");
 
             }
@@ -829,7 +875,7 @@ namespace CPI_TEST
                 }
                 if (x == HEAD_LOCATION.X && y == HEAD_LOCATION.Y && z == HEAD_LOCATION.Z)
                     return;
-                G01(x, y, 0.01F);  //Z-PROBLEM
+                G01(x, y, z);  //Z-PROBLEM
                 //debugText.AppendText(which + " " + x + " " + y + " " + z + "\n");
             }
             else if (which == "G02" || which == "G2")
@@ -1166,7 +1212,7 @@ namespace CPI_TEST
             adjusting_camera = true;
             CameraAnchor.X = e.X;
             CameraAnchor.Y = e.Y;
-            debugText.AppendText(String.Format("{0:G3}",(e.X-208)/42.0) + " " + String.Format("{0:G3}",-(e.Y-173)/42.0) + "\n");
+            debugText.AppendText(String.Format("{0:G3}", (e.X - 208) / 42.0) + " " + String.Format("{0:G3}", -(e.Y - 173) / 42.0) + "\n");
         }
 
         private void Arena_MouseMove(object sender, MouseEventArgs e)
@@ -1237,12 +1283,34 @@ namespace CPI_TEST
 
         private void TestButton_Click(object sender, EventArgs e)
         {
-            G00(0F, 0F, 0F);
-            G00(0.1027F, 2.064F, 0F);
-            G00(0F, 0F, 0F);
-            G01(0.3367F, 2.028F, 0F);
-            G01(0F, 0F, 0F);
-            G00(0.3511F, 2.0281F, 0F);
+            incremental = true;
+            G00(0, 0, 1);
+            G00(1F, 0F, 0.1F);
+            G02(0F, -1F, -1F, 0F);
+            G00(1F, 0F, 0.2F);
+            G02(0F, -1F, -1F, 0F);
+            G00(1F, 0F, 0.3F);
+            G02(0F, -1F, -1F, 0F);
+            G00(1F, 0F, 0.4F);
+            G02(0F, -1F, -1F, 0F);
+            G00(1F, 0F, 0.5F);
+            G02(0F, -1F, -1F, 0F);
+            G00(1F, 0F, 0.6F);
+            G02(0F, -1F, -1F, 0F);
+            foreach (Drawable item in Paths)
+            {
+                if (item is Arc)
+                {
+                    Arc a = (Arc)item;
+                    IDictionary<string, double> AI = a.GetAngleInfo();
+                    debugText.AppendText("ANGLE || Start: " + AI["AngStart"] + " || " + AI["AngFinish"] + " || " + AI["TotalAngle"] + "\n");
+                }
+            }
+            //G03(0.3511F, 2.0281F, 0.0F, 0.7783F);
+            //G00(0F, 0F, 0F);
+            //G01(0.3367F, 2.028F, 0F);
+            //G01(0F, 0F, 0F);
+            //G00(0.3511F, 2.0281F, 0F);
             /*debugText.Clear();
             foreach (var item in Paths)
             {
@@ -2222,21 +2290,79 @@ namespace CPI_TEST
             int max_verts = (int)Math.Floor((GetLength() * 100));
             double Xstep = (EndVertex.X - StartVertex.X) / max_verts;
             double Ystep = (EndVertex.Y - StartVertex.Y) / max_verts;
-            double interval = Math.Pow(Math.Pow(Xstep, 2) + Math.Pow(Ystep, 2), 0.5);
+            double Zstep = (EndVertex.Z - StartVertex.Z) / max_verts;
+            double interval = Math.Pow(Math.Pow(Xstep, 2) + Math.Pow(Ystep, 2) + Math.Pow(Zstep, 2), 0.5);
             double endX = StartVertex.X;
             double endY = StartVertex.Y;
-            GL.Vertex3(endX, endY, StartVertex.Z);
+            double endZ = StartVertex.Z;
+            GL.Vertex3(endX, endY, endZ);
             while (total_drawn <= distance)
             {
                 endX += Xstep;
                 endY += Ystep;
+                endZ += Zstep;
                 total_drawn += interval;
             }
-            GL.Vertex3(endX, endY, StartVertex.Z);
+            GL.Vertex3(endX, endY, endZ);
             //GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
 
             GL.End();
-            Point3D ret = new Point3D((float)endX, (float)endY, (float)StartVertex.Z);
+            Point3D ret = new Point3D((float)endX, (float)endY, (float)endZ);
+            return ret;
+
+        }
+        public override double GetLength()
+        {
+            return Math.Pow(Math.Pow(StartVertex.X - EndVertex.X, 2) + Math.Pow(StartVertex.Y - EndVertex.Y, 2) + Math.Pow(StartVertex.Z - EndVertex.Z, 2), 0.5);
+        }
+    }
+
+    public class HeadMotion : Drawable
+    {
+        public Point3D StartVertex { get; set; }
+        public Point3D EndVertex { get; set; }
+        public HeadMotion() { }
+        public HeadMotion(float x1, float y1, float z1, float x2, float y2, float z2)
+        {
+            StartVertex.X = x1;
+            StartVertex.Y = y1;
+            StartVertex.Z = z1;
+            EndVertex.X = x2;
+            EndVertex.Y = y2;
+            EndVertex.Z = z2;
+        }
+
+        public HeadMotion(Point3D Start, Point3D End)
+        {
+            StartVertex = Start;
+            EndVertex = End;
+        }
+
+        public override void Render()
+        {
+
+        }
+
+        public override Point3D Render(double distance)
+        {
+            double total_drawn = 0;
+            int max_verts = (int)Math.Floor((GetLength() * 100));
+            double Xstep = (EndVertex.X - StartVertex.X) / max_verts;
+            double Ystep = (EndVertex.Y - StartVertex.Y) / max_verts;
+            double Zstep = (EndVertex.Z - StartVertex.Z) / max_verts;
+            double interval = Math.Pow(Math.Pow(Xstep, 2) + Math.Pow(Ystep, 2) + Math.Pow(Zstep, 2), 0.5);
+            double endX = StartVertex.X;
+            double endY = StartVertex.Y;
+            double endZ = StartVertex.Z;
+            while (total_drawn <= distance)
+            {
+                endX += Xstep;
+                endY += Ystep;
+                endZ += Zstep;
+                total_drawn += interval;
+            }
+
+            Point3D ret = new Point3D((float)endX, (float)endY, (float)endZ);
             return ret;
 
         }
@@ -2285,7 +2411,7 @@ namespace CPI_TEST
                 throw new System.Exception(ec.ToString());
             }
         }
-        
+
         public IDictionary<string, double> GetAngleInfo()
         {
             IDictionary<string, double> ret = new Dictionary<string, double>();
@@ -2295,22 +2421,27 @@ namespace CPI_TEST
             double Yoffset = 0;
             double radius = 0;
 
-            float X = StartVertex.X;
-            float Y = StartVertex.Y;
-            float Xcode = EndVertex.X;
-            float Ycode = EndVertex.Y;
-            float Icode = OffsetVertex.X;
-            float Jcode = OffsetVertex.Y;
+            float X = StartVertex.X;        //3.8755
+            float Y = StartVertex.Y;        //0.9929
+            float Xcode = EndVertex.X;      //3.9006
+            float Ycode = EndVertex.Y;      //1.1047
+            float Icode = OffsetVertex.X;   //-0.2619
+            float Jcode = OffsetVertex.Y;   //0
+            //G01(3.8755F, 0.9929F, 0.0F);
+            //G03(3.9006F, 1.1047F, -0.2619F, 0.0F);
+
             if (incremental)
             {
                 //Xcode += X;
                 //Ycode += Y;
-                Icode += X;
-                Jcode += Y;
+                Icode += X;                 //icode = -0.2619 + 3.8755 = 3.6136
+                Jcode += Y;                 //jcode = 0 + 0.9929 = 0.9929
             }
-            Xoffset = X - Icode;
-            Yoffset = Y - Jcode;
+            Xoffset = X - Icode;            //XOFFSET = 3.8755 - (3.6136) 0.2619
+            Yoffset = Y - Jcode;            //YOFFSET = 0.9929 - 0.9929 = 0.0
+            //X3.8948 Y1.1597 I-.2619 J0.
 
+            //throw new Exception("X: " + X + " Y: " + Y + " IC: " + Icode + " JC: " + Jcode + " XO: " + Xoffset + " YO: " + Yoffset + " BA: " + Math.Atan(Yoffset/Xoffset));
             if (Xoffset > 0 && Yoffset > 0)
             {
                 Angstart = Math.Atan(Yoffset / Xoffset);
@@ -2333,11 +2464,11 @@ namespace CPI_TEST
             }
             else if (Xoffset == 0 && Yoffset < 0)
             {
-                Angstart = -Math.PI / 2;
+                Angstart = 3 * (Math.PI / 2);
             }
 
-            Xoffset = Xcode - Icode;
-            Yoffset = Ycode - Jcode;
+            Xoffset = Xcode - Icode;    //3.9006 - 3.6136 = 0.287
+            Yoffset = Ycode - Jcode;    //1.1047 - 0.9929 = 0.1118
 
             if (Xoffset > 0 && Yoffset > 0)
             {
@@ -2361,14 +2492,28 @@ namespace CPI_TEST
             }
             else if (Xoffset == 0 && Yoffset < 0)
             {
-                Angfinish = -Math.PI / 2;
+                Angfinish = 3 * (Math.PI / 2);
             }
+            //throw new Exception("X: " + X + " Y: " + Y + " IC: " + Icode + " JC: " + Jcode + " XO: " + Xoffset + " YO: " + Yoffset + " BA: " + Angfinish);
 
-            while((Angfinish > Angstart) && CW)
+            //throw new Exception("KC: " + Xcode + " IC : " + Icode + " XO: " + Xoffset + " inc: " + incremental);
+            //G02 If Theta2 > Theta1 Then Theta2 = Theta2 - 2 * 3.14159
+            //G03 If Theta2 < Theta1 Then Theta1 = Theta1 - 2 * 3.14159
+
+            if (CW)
             {
-                Angfinish -= (2 * Math.PI);
+                while (Angfinish > Angstart)
+                {
+                    Angfinish -= (2 * Math.PI);
+                }
             }
-
+            else
+            {
+                while (Angfinish < Angstart)
+                {
+                    Angstart -= 2 * (Math.PI);
+                }
+            }
             if (CW && (Angstart - Angfinish > (2 * Math.PI)))
             {
                 Angstart -= (2 * Math.PI);
@@ -2377,10 +2522,10 @@ namespace CPI_TEST
             {
                 Angfinish -= (2 * Math.PI);
             }
-
+            //throw new Exception("S: " + Angstart + " F: " + Angfinish);
             double TotalAngle = 0;
 
-            if(CW)
+            if (CW)
                 TotalAngle = Angstart - Angfinish;
             else
                 TotalAngle = Angfinish - Angstart;
@@ -2407,10 +2552,10 @@ namespace CPI_TEST
         public override void Render()
         {
             GL.Begin(PrimitiveType.LineStrip);
-            if(CW)
+            if (CW)
                 GL.Color3(Color.Wheat);
             else
-                GL.Color3(Color.Crimson);
+                GL.Color3(Color.Wheat);
             IDictionary<string, double> AngleInfo = GetAngleInfo();  //{AngStart, AngFinish, X, Y, ICode, JCode, Radius, TotalAngle};
             var AngStart = AngleInfo["AngStart"];
             var AngFinish = AngleInfo["AngFinish"];
@@ -2461,9 +2606,9 @@ namespace CPI_TEST
             if (TotalAngle > (2 * Math.PI))
                 throw new Exception("Angle TOO BIG! " + TotalAngle + " " + AngStart + " " + AngFinish);
             //if (TotalAngle < 0)
-                //throw new Exception("Angle TOO SMALL!" + TotalAngle);
+            //throw new Exception("Angle TOO SMALL!" + TotalAngle);
             //if(!CW)
-                //throw new Exception("Angle Info: " + TotalAngle + " " + AngStart + " " + AngFinish);
+            //throw new Exception("Angle Info: " + TotalAngle + " " + AngStart + " " + AngFinish);
             GL.Begin(PrimitiveType.LineStrip);
             GL.Color3(Color.Wheat);
 
@@ -2599,10 +2744,10 @@ namespace CPI_TEST
                     double x = Math.Cos(lng);
                     double y = Math.Sin(lng);
 
-                    GL.Normal3((x * zr0) + loc.X, (y * zr0) + loc.Y, z0 * width);
-                    GL.Vertex3((x * zr0) + loc.X, (y * zr0) + loc.Y, z0 * width);
-                    GL.Normal3((x * zr1) + loc.X, (y * zr1) + loc.Y, z1 * width);
-                    GL.Vertex3((x * zr1) + loc.X, (y * zr1) + loc.Y, z1 * width);
+                    GL.Normal3((x * zr0) + loc.X, (y * zr0) + loc.Y, (z0 * width) + loc.Z);
+                    GL.Vertex3((x * zr0) + loc.X, (y * zr0) + loc.Y, (z0 * width) + loc.Z);
+                    GL.Normal3((x * zr1) + loc.X, (y * zr1) + loc.Y, (z1 * width) + loc.Z);
+                    GL.Vertex3((x * zr1) + loc.X, (y * zr1) + loc.Y, (z1 * width) + loc.Z);
                 }
                 GL.End();
             }
@@ -2615,6 +2760,7 @@ namespace CPI_TEST
         public IList<string> ListElements()
         {
             IList<string> ret = new List<string>();
+
             string t = "";
             foreach (var item in Elements)
             {
@@ -2627,7 +2773,7 @@ namespace CPI_TEST
                     TEMPARC = (Arc)item;
                     if (TEMPARC.CW) { t += "G02 "; }
                     else { t += "G03 "; }
-                    t += " X: " + TEMPARC.StartVertex.X + " Y: " + TEMPARC.StartVertex.Y + " I: " + TEMPARC.OffsetVertex.X + " J: " + TEMPARC.OffsetVertex.Y + " Angle: " + String.Format("{0:G3}", TEMPARC.GetAngle()) + " Length: " + String.Format("{0:G3}", TEMPARC.GetLength());
+                    t += " X: " + TEMPARC.StartVertex.X + " Y: " + TEMPARC.StartVertex.Y + " I: " + TEMPARC.OffsetVertex.X + " J: " + TEMPARC.OffsetVertex.Y + " Angle: " + String.Format("{0:G3}", TEMPARC.GetAngle()) + " Length: " + String.Format("{0:G3}", TEMPARC.GetLength() + " " + TEMPARC.incremental);
 
                 }
                 else if (item is LineSegment)
