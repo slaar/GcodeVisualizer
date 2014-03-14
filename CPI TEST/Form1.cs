@@ -54,6 +54,7 @@ namespace CPI_TEST
         Point3D HEAD_LOCATION = new Point3D(1, 1, 0);
         bool incremental = false;
         Graphics g;
+        IList<double> StepLengths = new List<double>();
 
         public MainForm()
         {
@@ -162,9 +163,32 @@ namespace CPI_TEST
                 {
                     var rate = 1100 - (speed * 100);
                     var distance = (TimeElapsed) / rate;
-                    MAIN.Draw((TimeElapsed) / rate);
+                    MAIN.Draw(distance);
+                    double z = 0;
+                    int index = -1;
+                    foreach (var l in StepLengths)
+                    {
+                        z += l;
+                        index++;
+                        if (z >= distance)
+                        {
+                            break;
+                        }
+                    }
+                    if (index > 0)
+                    {
+                        string OldText = debugText.Lines[index - 1];
+                        debugText.Select(debugText.GetFirstCharIndexFromLine(index - 1), OldText.Length);
+                        debugText.SelectionColor = Color.Black;
+                    }
+                    string text = debugText.Lines[index];
+                    debugText.Select(debugText.GetFirstCharIndexFromLine(index), text.Length);
+                    debugText.SelectionColor = Color.Red;
+
+                    /*
                     if (Math.Floor(TimeElapsed) % 1000 == 0)
                         debugText.AppendText("tick: " + distance + "\n");
+                    */
                 }
                 else
                 {
@@ -179,8 +203,12 @@ namespace CPI_TEST
         {
             DrawAlien();
             MainForm.animating = true;
-            if (MainForm.animating) debugText.AppendText("FLIP");
+            //if (MainForm.animating) debugText.AppendText("FLIP");
             MAIN = new Sculpture(Paths);
+            foreach (Drawable item in Paths)
+            {
+                StepLengths.Add(item.GetLength());
+            }
             MAINLoaded = true;
         }
 
@@ -193,7 +221,7 @@ namespace CPI_TEST
         {
             DrawSmile();
             MainForm.animating = true;
-            if (MainForm.animating) debugText.AppendText("FLIP");
+            //if (MainForm.animating) debugText.AppendText("FLIP");
             MAIN = new Sculpture(Paths);
             MAINLoaded = true;
         }
@@ -706,12 +734,21 @@ namespace CPI_TEST
                 //MAIN = new Sculpture(Paths);
                 IList<string> ColumnA = new List<string>();
                 //IList<string> ColumnB = new List<string>();
+                foreach (Drawable item in Paths)
+                {
+                    StepLengths.Add(item.GetLength());
+                }
+                double TotalDisplayLength = StepLengths.Aggregate((a, b) => b + a);
                 ColumnA = MAIN.ListElements();
+                debugText.Font = new Font("Consolas", debugText.Font.Size);
                 //ColumnB = MAIN2.ListElements();
                 for (int i = 0; i < MAIN.CountElements(); i++)
                 {
                     debugText.AppendText(ColumnA[i]);
                 }
+
+                //debugText.AppendText("Total Length: " + TotalDisplayLength);
+                //debugText.Select(1, 2);
                 /*
                 foreach (Drawable D in Paths)
                 {
@@ -1283,6 +1320,13 @@ namespace CPI_TEST
 
         private void TestButton_Click(object sender, EventArgs e)
         {
+            Random rnd = new Random();
+            int LineNumber = rnd.Next(debugText.Lines.Length);
+            string text = debugText.Lines[LineNumber];
+            debugText.Select(debugText.GetFirstCharIndexFromLine(LineNumber), text.Length);
+            debugText.SelectionColor = Color.Red;
+
+            /*
             incremental = true;
             G00(0, 0, 1);
             G00(1F, 0F, 0.1F);
@@ -1305,7 +1349,7 @@ namespace CPI_TEST
                     IDictionary<string, double> AI = a.GetAngleInfo();
                     debugText.AppendText("ANGLE || Start: " + AI["AngStart"] + " || " + AI["AngFinish"] + " || " + AI["TotalAngle"] + "\n");
                 }
-            }
+            }*/
             //G03(0.3511F, 2.0281F, 0.0F, 0.7783F);
             //G00(0F, 0F, 0F);
             //G01(0.3367F, 2.028F, 0F);
@@ -2767,19 +2811,25 @@ namespace CPI_TEST
                 t = "";
                 Arc TEMPARC;
                 LineSegment TEMPLINE;
-                t += item.GetType() + ": ";
+                HeadMotion HM;
+                //t += item.GetType() + ": ";
                 if (item is Arc)
                 {
                     TEMPARC = (Arc)item;
-                    if (TEMPARC.CW) { t += "G02 "; }
-                    else { t += "G03 "; }
-                    t += " X: " + TEMPARC.StartVertex.X + " Y: " + TEMPARC.StartVertex.Y + " I: " + TEMPARC.OffsetVertex.X + " J: " + TEMPARC.OffsetVertex.Y + " Angle: " + String.Format("{0:G3}", TEMPARC.GetAngle()) + " Length: " + String.Format("{0:G3}", TEMPARC.GetLength() + " " + TEMPARC.incremental);
+                    if (TEMPARC.CW) { t += "G02" + " "; }
+                    else { t += "G03" + " "; }
+                    t += "X: " + TEMPARC.StartVertex.X + " Y: " + TEMPARC.StartVertex.Y + " I: " + TEMPARC.OffsetVertex.X + " J: " + TEMPARC.OffsetVertex.Y;//+ " Angle: " + String.Format("{0:G3}", TEMPARC.GetAngle()) + " Length: " + String.Format("{0:G3}", TEMPARC.GetLength() + " " + TEMPARC.incremental*/);
 
                 }
                 else if (item is LineSegment)
                 {
                     TEMPLINE = (LineSegment)item;
-                    t += " X: " + TEMPLINE.EndVertex.X + " Y: " + TEMPLINE.EndVertex.Y + " Z: " + TEMPLINE.EndVertex.Z + " length: " + TEMPLINE.GetLength();
+                    t += "G01" + " " + "X: " + TEMPLINE.EndVertex.X + " Y: " + TEMPLINE.EndVertex.Y + " Z: " + TEMPLINE.EndVertex.Z /*+ " length: " + TEMPLINE.GetLength()*/;
+                }
+                else if (item is HeadMotion)
+                {
+                    HM = (HeadMotion)item;
+                    t += "G00" + " " + "X: " + HM.EndVertex.X + " Y: " + HM.EndVertex.Y + " Z: " + HM.EndVertex.Z/* + " length: " + HM.GetLength()*/;
                 }
                 ret.Add(t += "\n");
             }
