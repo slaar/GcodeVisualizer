@@ -37,11 +37,11 @@
             this.SlowerButton = new System.Windows.Forms.Button();
             this.BackUp = new System.Windows.Forms.Button();
             this.ResetView = new System.Windows.Forms.Button();
+            this.TestButton = new System.Windows.Forms.Button();
             this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
             this.Arena = new OpenTK.GLControl();
             this.debugText = new System.Windows.Forms.RichTextBox();
             this.LoadGCODEFile = new System.Windows.Forms.OpenFileDialog();
-            this.TestButton = new System.Windows.Forms.Button();
             this.tableLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel3.SuspendLayout();
@@ -149,6 +149,16 @@
             this.ResetView.UseVisualStyleBackColor = true;
             this.ResetView.Click += new System.EventHandler(this.ResetView_Click);
             // 
+            // TestButton
+            // 
+            this.TestButton.Location = new System.Drawing.Point(371, 3);
+            this.TestButton.Name = "TestButton";
+            this.TestButton.Size = new System.Drawing.Size(75, 23);
+            this.TestButton.TabIndex = 6;
+            this.TestButton.Text = "TEST";
+            this.TestButton.UseVisualStyleBackColor = true;
+            this.TestButton.Click += new System.EventHandler(this.TestButton_Click);
+            // 
             // flowLayoutPanel2
             // 
             this.flowLayoutPanel2.Controls.Add(this.Arena);
@@ -182,22 +192,13 @@
             this.debugText.Size = new System.Drawing.Size(375, 348);
             this.debugText.TabIndex = 1;
             this.debugText.Text = "";
+            this.debugText.MouseDown += new System.Windows.Forms.MouseEventHandler(this.debugText_MouseDown);
             // 
             // LoadGCODEFile
             // 
             this.LoadGCODEFile.FileName = "smile.gcode";
             this.LoadGCODEFile.Filter = "GCODE files (*.NC)|*.NC|All files (*.*)|*.*";
             this.LoadGCODEFile.FileOk += new System.ComponentModel.CancelEventHandler(this.LoadGCODEFile_FileOk);
-            // 
-            // TestButton
-            // 
-            this.TestButton.Location = new System.Drawing.Point(371, 3);
-            this.TestButton.Name = "TestButton";
-            this.TestButton.Size = new System.Drawing.Size(75, 23);
-            this.TestButton.TabIndex = 6;
-            this.TestButton.Text = "TEST";
-            this.TestButton.UseVisualStyleBackColor = true;
-            this.TestButton.Click += new System.EventHandler(this.TestButton_Click);
             // 
             // MainForm
             // 

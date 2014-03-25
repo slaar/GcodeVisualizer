@@ -50,6 +50,8 @@ namespace CPI_TEST
         public static double TimeElapsed = 0;
         //END ANIMATION STUFF
 
+        double ViewportX = 0;
+        double ViewportY = 0;
         float GlobalScale = 0.2F;
         Point3D HEAD_LOCATION = new Point3D(1, 1, 0);
         bool incremental = false;
@@ -136,6 +138,36 @@ namespace CPI_TEST
             debugText.AppendText("HI");
         }
 
+        private void debugText_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            // Declare the string to search for in the control. 
+            //string searchString = "G03";
+
+            // Determine whether the user clicks the left mouse button and whether it is a double click. 
+            if (e.Clicks == 1 && e.Button == MouseButtons.Left)
+            {
+                // Obtain the character index where the user clicks on the control. 
+                int positionToSearch = debugText.GetCharIndexFromPosition(new Point(e.X, e.Y));
+                // Search for the search string text within the control from the point the user clicked. 
+                int LineNumber = debugText.GetLineFromCharIndex(positionToSearch);
+                int TempCounter = 0;
+                bool found = false;
+                foreach (Drawable item in Paths.ToList())
+                {
+                    if (TempCounter == LineNumber)
+                    {
+                        MAIN.Highlight(item);
+                        Arena.Invalidate();
+                        found = true;
+                    }
+                    TempCounter++;
+                }
+
+                //MessageBox.Show(debugText.Lines[debugText.GetLineFromCharIndex(positionToSearch)]);
+
+            }
+        }
+
         static float NextFloat(Random random)
         {
             var mantissa = (random.NextDouble() * 2.0) - 1.0;
@@ -153,6 +185,13 @@ namespace CPI_TEST
 
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadIdentity();
+            //GL.Ortho(ViewportX, 3 + ViewportX, ViewportY, 3 + ViewportY, -3, 3);
+            if (MAINLoaded)
+            {
+                IDictionary<string, double> off = MAIN.Offsets();
+                GL.Translate(GlobalScale * (-1 * (off["XMinimum"] + off["XMaximum"]) / 2), GlobalScale * (-1 * (off["YMinimum"] + off["YMaximum"]) / 2), 0);
+                //GL.Translate(-1 , -1 , 0);
+            }
             GL.Scale(GlobalScale, GlobalScale, GlobalScale);
             if (RotationMagnitude > 0)
                 GL.Rotate(RotationMagnitude, RotationAxis.X, RotationAxis.Y, RotationAxis.Z);
@@ -184,7 +223,11 @@ namespace CPI_TEST
                     string text = debugText.Lines[index];
                     debugText.Select(debugText.GetFirstCharIndexFromLine(index), text.Length);
                     debugText.SelectionColor = Color.Red;
-
+                    //debugText.ScrollToCaret();
+                    if (distance > MAIN.GetLength())
+                    {
+                        MainForm.animating = false;
+                    }
                     /*
                     if (Math.Floor(TimeElapsed) % 1000 == 0)
                         debugText.AppendText("tick: " + distance + "\n");
@@ -237,13 +280,16 @@ namespace CPI_TEST
 
         private void G01(float x, float y, float z)
         {
-            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z), Color.White));
+            Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z), Color.Gray));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, z));
         }
 
         private bool G02(float x, float y, float i, float j)
         {
             var prev = Paths.Count();
+            //throw new Exception("X: " + x + " HX: " + HEAD_LOCATION.X);
+            if (HEAD_LOCATION.X == x && HEAD_LOCATION.Y == y)
+                return false;
             Paths.Add(new Arc(HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z), new Point3D(i, j, HEAD_LOCATION.Z), 'Z', true, incremental));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z));
             if (prev < Paths.Count())
@@ -700,6 +746,7 @@ namespace CPI_TEST
         {
             if (LoadGCODEFile.ShowDialog() == DialogResult.OK)
             {
+                debugText.ReadOnly = true;
                 MoveHead(out HEAD_LOCATION, new Point3D(0, 0, 0));
                 System.IO.StreamReader file = new System.IO.StreamReader(LoadGCODEFile.FileName);
                 GCODECommands.Clear();
@@ -934,7 +981,7 @@ namespace CPI_TEST
                 }
                 if ((x == HEAD_LOCATION.X) && (y == HEAD_LOCATION.Y) && (z == HEAD_LOCATION.Z))
                     return;
-                if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
+                else if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
                 {
                     if (G02(x, y, args["I"], args["J"]))
                     {
@@ -964,7 +1011,7 @@ namespace CPI_TEST
                 }
                 if ((x == HEAD_LOCATION.X) && (y == HEAD_LOCATION.Y) && (z == HEAD_LOCATION.Z))
                     return;
-                if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
+                else if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
                 {
                     if (G03(x, y, args["I"], args["J"]))
                     {
@@ -1035,7 +1082,7 @@ namespace CPI_TEST
             {
                 Arc a = (Arc)item;
                 GL.Begin(PrimitiveType.LineStrip);
-                GL.Color3(Color.Wheat);
+                GL.Color3(Color.Gray);
                 double Angstart = 0;
                 double Angfinish = 0;
                 double Angiterate = 0;
@@ -1316,16 +1363,14 @@ namespace CPI_TEST
         {
             RotationMagnitude = 0;
             GlobalScale = 0.2F;
+            SetupViewport();
         }
 
         private void TestButton_Click(object sender, EventArgs e)
         {
-            Random rnd = new Random();
-            int LineNumber = rnd.Next(debugText.Lines.Length);
-            string text = debugText.Lines[LineNumber];
-            debugText.Select(debugText.GetFirstCharIndexFromLine(LineNumber), text.Length);
-            debugText.SelectionColor = Color.Red;
-
+            IDictionary<string, double> off = MAIN.Offsets();
+            MessageBox.Show(off["XMinimum"] + " " + off["XMaximum"] + off["YMinimum"] + " " + off["YMaximum"]);
+            //SetupViewport(-50, -50);
             /*
             incremental = true;
             G00(0, 0, 1);
@@ -2270,6 +2315,31 @@ namespace CPI_TEST
                 throw new Exception("No length method defined for this! (???) " + this.GetType());
             return 0;
         }
+        public bool IsEqualTo(Drawable d)
+        {
+            if (this is HeadMotion && d is HeadMotion)
+            {
+                HeadMotion a = (HeadMotion)this;
+                HeadMotion b = (HeadMotion)d;
+                if (a.StartVertex.IsSame(b.StartVertex) && a.EndVertex.IsSame(b.EndVertex))
+                    return true;
+            }
+            else if (this is LineSegment && d is LineSegment)
+            {
+                LineSegment a = (LineSegment)this;
+                LineSegment b = (LineSegment)d;
+                if (a.StartVertex.IsSame(b.StartVertex) && a.EndVertex.IsSame(b.EndVertex))
+                    return true;
+            }
+            else if (this is Arc && d is Arc)
+            {
+                Arc a = (Arc)this;
+                Arc b = (Arc)d;
+                if (a.StartVertex.IsSame(b.StartVertex) && a.EndVertex.IsSame(b.EndVertex) && a.OffsetVertex.IsSame(b.OffsetVertex))
+                    return true;
+            }
+            return false;
+        }
     }
 
     public class Dot : Drawable
@@ -2290,7 +2360,7 @@ namespace CPI_TEST
     {
         public Point3D StartVertex { get; set; }
         public Point3D EndVertex { get; set; }
-        public System.Drawing.Color dColor = Color.BlueViolet;
+        public System.Drawing.Color dColor = Color.Gray;
         public LineSegment() { }
         public LineSegment(float x1, float y1, float z1, float x2, float y2, float z2)
         {
@@ -2355,6 +2425,22 @@ namespace CPI_TEST
             return ret;
 
         }
+        public double MaxX()
+        {
+            return Math.Max(StartVertex.X, EndVertex.X);
+        }
+        public double MinX()
+        {
+            return Math.Min(StartVertex.X, EndVertex.X);
+        }
+        public double MaxY()
+        {
+            return Math.Max(StartVertex.Y, EndVertex.Y);
+        }
+        public double MinY()
+        {
+            return Math.Min(StartVertex.Y, EndVertex.Y);
+        }
         public override double GetLength()
         {
             return Math.Pow(Math.Pow(StartVertex.X - EndVertex.X, 2) + Math.Pow(StartVertex.Y - EndVertex.Y, 2) + Math.Pow(StartVertex.Z - EndVertex.Z, 2), 0.5);
@@ -2365,6 +2451,9 @@ namespace CPI_TEST
     {
         public Point3D StartVertex { get; set; }
         public Point3D EndVertex { get; set; }
+        public System.Drawing.Color dColor = Color.Wheat;
+        public bool HighLight;
+
         public HeadMotion() { }
         public HeadMotion(float x1, float y1, float z1, float x2, float y2, float z2)
         {
@@ -2382,10 +2471,25 @@ namespace CPI_TEST
             EndVertex = End;
         }
 
+        public HeadMotion(Point3D Start, Point3D End, System.Drawing.Color in_Color)
+        {
+            dColor = in_Color;
+            StartVertex = Start;
+            EndVertex = End;
+            HighLight = true;
+        }
         public override void Render()
         {
-
+            if (HighLight)
+            {
+                GL.Begin(PrimitiveType.Lines);
+                GL.Color3(Color.HotPink);
+                GL.Vertex3(StartVertex.X, StartVertex.Y, StartVertex.Z);
+                GL.Vertex3(EndVertex.X, EndVertex.Y, EndVertex.Z);
+                GL.End();
+            }
         }
+
 
         public override Point3D Render(double distance)
         {
@@ -2410,6 +2514,22 @@ namespace CPI_TEST
             return ret;
 
         }
+        public double MaxX()
+        {
+            return Math.Max(StartVertex.X, EndVertex.X);
+        }
+        public double MinX()
+        {
+            return Math.Min(StartVertex.X, EndVertex.X);
+        }
+        public double MaxY()
+        {
+            return Math.Max(StartVertex.Y, EndVertex.Y);
+        }
+        public double MinY()
+        {
+            return Math.Min(StartVertex.Y, EndVertex.Y);
+        }
         public override double GetLength()
         {
             return Math.Pow(Math.Pow(StartVertex.X - EndVertex.X, 2) + Math.Pow(StartVertex.Y - EndVertex.Y, 2) + Math.Pow(StartVertex.Z - EndVertex.Z, 2), 0.5);
@@ -2422,6 +2542,8 @@ namespace CPI_TEST
         public Point3D EndVertex { get; set; }
         public Point3D OffsetVertex { get; set; }
         public Point3D CenterVertex { get; set; }
+        public System.Drawing.Color dColor = Color.Wheat;
+        public bool HighLight = false;
         public char Axis { get; set; }
         public bool CW { get; set; }
         public bool incremental { get; set; }
@@ -2446,6 +2568,16 @@ namespace CPI_TEST
             incremental = increm;
             CW = clockwise;
         }
+        public Arc(Point3D Start, Point3D End, Point3D Offset, char axis, bool clockwise, bool increm, System.Drawing.Color dColor) //Start = HEAD_LOCATION basically always
+        {
+            EndVertex = End;
+            StartVertex = Start;
+            OffsetVertex = Offset;
+            Axis = axis;
+            incremental = increm;
+            CW = clockwise;
+            HighLight = true;
+        }
 
         private static void CheckError()
         {
@@ -2464,6 +2596,10 @@ namespace CPI_TEST
             double Xoffset = 0;
             double Yoffset = 0;
             double radius = 0;
+            double XMinimum = 9999;
+            double XMaximum = -9999;
+            double YMinimum = 9999;
+            double YMaximum = -9999;
 
             float X = StartVertex.X;        //3.8755
             float Y = StartVertex.Y;        //0.9929
@@ -2574,8 +2710,52 @@ namespace CPI_TEST
             else
                 TotalAngle = Angfinish - Angstart;
 
-
             radius = Math.Pow(Math.Pow(Yoffset, 2) + Math.Pow(Xoffset, 2), 0.5);
+
+
+            var DeltaAngle = TotalAngle / ((2 * Math.PI * radius * (TotalAngle / (2 * Math.PI))) / 0.0050);
+
+            var AngIterate = Angstart;
+
+            var Xiterate = (double) X;
+            var Yiterate = (double) Y;
+
+            if (CW)
+            {
+                while (AngIterate > (Angfinish - DeltaAngle))
+                {
+                    Xiterate = (radius * Math.Cos(AngIterate)) + Icode;
+                    Yiterate = (radius * Math.Sin(AngIterate)) + Jcode;
+                    if (Yiterate > YMaximum)
+                        YMaximum = Yiterate;
+                    if (Yiterate < YMinimum)
+                        YMinimum = Yiterate;
+                    if (Xiterate > XMaximum)
+                        XMaximum = Xiterate;
+                    if (Xiterate < XMinimum)
+                        XMinimum = Xiterate;
+                    AngIterate -= DeltaAngle;
+                }
+            }
+            else
+            {
+                while (AngIterate < (Angfinish - DeltaAngle))
+                {
+                    Xiterate = (radius * Math.Cos(AngIterate)) + Icode;
+                    Yiterate = (radius * Math.Sin(AngIterate)) + Jcode;
+                    if (Yiterate > YMaximum)
+                        YMaximum = Yiterate;
+                    if (Yiterate < YMinimum)
+                        YMinimum = Yiterate;
+                    if (Xiterate > XMaximum)
+                        XMaximum = Xiterate;
+                    if (Xiterate < XMinimum)
+                        XMinimum = Xiterate;
+                    AngIterate += DeltaAngle;
+                }
+            } 
+            
+            
             ret.Add("AngStart", Angstart);
             ret.Add("AngFinish", Angfinish);
             ret.Add("X", X);
@@ -2584,6 +2764,10 @@ namespace CPI_TEST
             ret.Add("JCode", Jcode);
             ret.Add("Radius", radius);
             ret.Add("TotalAngle", TotalAngle);
+            ret.Add("XMinimum", XMinimum);
+            ret.Add("XMaximum", XMaximum);
+            ret.Add("YMinimum", YMinimum);
+            ret.Add("YMaximum", YMaximum);
             return ret;
         }
 
@@ -2596,10 +2780,10 @@ namespace CPI_TEST
         public override void Render()
         {
             GL.Begin(PrimitiveType.LineStrip);
-            if (CW)
-                GL.Color3(Color.Wheat);
+            if (HighLight)
+                GL.Color3(Color.Red);
             else
-                GL.Color3(Color.Wheat);
+                GL.Color3(Color.Gray);
             IDictionary<string, double> AngleInfo = GetAngleInfo();  //{AngStart, AngFinish, X, Y, ICode, JCode, Radius, TotalAngle};
             var AngStart = AngleInfo["AngStart"];
             var AngFinish = AngleInfo["AngFinish"];
@@ -2757,6 +2941,16 @@ namespace CPI_TEST
         public IList<Drawable> Elements;
         public double TotalDrawn { get; set; }
         public double ItemLength { get; set; }
+        public int PinkElement = -1;
+        [StructLayout(LayoutKind.Sequential)]
+        struct Vertex
+        { // mimic InterleavedArrayFormat.T2fN3fV3f
+            public Vector2 TexCoord;
+            public Vector3 Normal;
+            public Vector3 Position;
+        }
+
+        Vertex[] Vertices;
         public Sculpture() { }
         public Sculpture(IList<Drawable> inElements)
         {
@@ -2800,7 +2994,83 @@ namespace CPI_TEST
             GL.Vertex3(loc.X, loc.Y, loc.Z + 0.5);
             GL.End();
         }
-
+        public IDictionary<string,double> Offsets()
+        {
+            IDictionary<string, double> ret = new Dictionary<string, double>();
+            double XMinimum = 9999;
+            double XMaximum = -9999;
+            double YMinimum = 9999;
+            double YMaximum = -9999;
+            foreach (var item in Elements)
+            {
+                if (item is HeadMotion)
+                {
+                    HeadMotion a = (HeadMotion)item;
+                    if (a.MaxX() > XMaximum)
+                    {
+                        XMaximum = a.MaxX();
+                    }
+                    if (a.MaxY() > YMaximum)
+                    {
+                        YMaximum = a.MaxY();
+                    }
+                    if (a.MinX() < XMinimum)
+                    {
+                        XMinimum = a.MinX();
+                    }
+                    if (a.MinY() < YMinimum)
+                    {
+                        YMinimum = a.MinY();
+                    }
+                }
+                else if(item is LineSegment)
+                {
+                    LineSegment a = (LineSegment)item;
+                    if (a.MaxX() > XMaximum)
+                    {
+                        XMaximum = a.MaxX();
+                    }
+                    if (a.MaxY() > YMaximum)
+                    {
+                        YMaximum = a.MaxY();
+                    }
+                    if (a.MinX() < XMinimum)
+                    {
+                        XMinimum = a.MinX();
+                    }
+                    if (a.MinY() < YMinimum)
+                    {
+                        YMinimum = a.MinY();
+                    }
+                }
+                else if (item is Arc)
+                {
+                    Arc a = (Arc)item;
+                    IDictionary<string, double> AI = a.GetAngleInfo();
+                    if (AI["XMaximum"] > XMaximum)
+                    {
+                        XMaximum = AI["XMaximum"];
+                    }
+                    if (AI["YMaximum"] > YMaximum)
+                    {
+                        YMaximum = AI["YMaximum"];
+                    }
+                    if (AI["XMinimum"] < XMinimum)
+                    {
+                        XMinimum = AI["XMinimum"];
+                    }
+                    if (AI["YMinimum"] < YMinimum)
+                    {
+                        YMinimum = AI["YMinimum"];
+                    }
+                }
+            }
+            ret.Add("XMinimum", XMinimum);
+            ret.Add("XMaximum", XMaximum);
+            ret.Add("YMinimum", YMinimum);
+            ret.Add("YMaximum", YMaximum);
+            return ret;
+        }
         public IList<string> ListElements()
         {
             IList<string> ret = new List<string>();
@@ -2836,12 +3106,78 @@ namespace CPI_TEST
             return ret;
 
         }
-
+        public void Highlight(Drawable item)
+        {
+            /*animals.RemoveAt(2);
+              animals.Insert(2, "snail");*/
+            if (PinkElement >= 0)
+            {
+                Drawable OldItem = Elements[PinkElement];
+                if (OldItem is HeadMotion)
+                {
+                    HeadMotion OI = (HeadMotion)OldItem;
+                    HeadMotion NI = new HeadMotion(OI.StartVertex, OI.EndVertex);
+                    Elements[PinkElement] = NI;
+                    //.RemoveAt(PinkElement);
+                    //Elements.Insert(PinkElement, NI);
+                }
+                if (OldItem is LineSegment)
+                {
+                    LineSegment OI = (LineSegment)OldItem;
+                    LineSegment NI = new LineSegment(OI.StartVertex, OI.EndVertex);
+                    Elements[PinkElement] = NI;
+                }
+                if (OldItem is Arc)
+                {
+                    Arc OI = (Arc)OldItem;
+                    Arc NI = new Arc(OI.StartVertex, OI.EndVertex, OI.OffsetVertex, OI.Axis, OI.CW, OI.incremental);
+                    Elements[PinkElement] = NI;
+                }
+            }
+            int index = -1;
+            foreach (Drawable thing in Elements)
+            {
+                if (thing.IsEqualTo(item))
+                {
+                    index = Elements.IndexOf(thing);
+                }
+            }
+            if (index >= 0)
+            {
+                System.Drawing.Color HColor = Color.Red;
+                Drawable ToBeHighlighted = Elements[index];
+                if (ToBeHighlighted is HeadMotion)
+                {
+                    HeadMotion HM = (HeadMotion)ToBeHighlighted;
+                    HeadMotion Highlighted = new HeadMotion(HM.StartVertex, HM.EndVertex, HColor);
+                    Elements[index] = Highlighted;
+                    PinkElement = index;
+                }
+                else if (ToBeHighlighted is LineSegment)
+                {
+                    LineSegment HM = (LineSegment)ToBeHighlighted;
+                    LineSegment Highlighted = new LineSegment(HM.StartVertex, HM.EndVertex, HColor);
+                    Elements[index] = Highlighted;
+                    PinkElement = index;
+                }
+                else if (ToBeHighlighted is Arc)
+                {
+                    Arc HM = (Arc)ToBeHighlighted;
+                    Arc Highlighted = new Arc(HM.StartVertex, HM.EndVertex, HM.OffsetVertex, HM.Axis, HM.CW, HM.incremental, HColor);
+                    Elements[index] = Highlighted;
+                    PinkElement = index;
+                }
+            }
+        }
         public void Draw()
         {
             foreach (Drawable item in Elements)
             {
+                item.Render();
+                /*
                 if (item is LineSegment)
+                    item.Render();
+                else if (item is HeadMotion)
                     item.Render();
                 else if (item is Arc)
                 {
@@ -2850,7 +3186,7 @@ namespace CPI_TEST
                     {
                         item.Render();
                     }
-                }
+                }*/
             }
         }
 
