@@ -1,4 +1,6 @@
-﻿namespace CPI_TEST
+﻿using System;
+using System.Drawing;
+namespace CPI_TEST
 {
     partial class MainForm
     {
@@ -18,6 +20,62 @@
                 components.Dispose();
             }
             base.Dispose(disposing);
+        }
+        public class ExRichTextBox : System.Windows.Forms.RichTextBox
+        {
+
+            private double _Yfactor = 1.0d;
+
+
+            public Point ScrollPos
+            {
+                get
+                {
+                    Point scrollPoint = new Point();
+
+                    SendMessage(this.Handle, EM_GETSCROLLPOS, IntPtr.Zero, ref scrollPoint);
+                    return scrollPoint;
+                }
+                set
+                {
+                    Point original = value;
+                    if (original.Y < 0)
+                        original.Y = 0;
+                    if (original.X < 0)
+                        original.X = 0;
+
+                    Point factored = value;
+                    factored.Y = (int)((double)original.Y * _Yfactor);
+
+                    Point result = value;
+
+                    SendMessage(this.Handle, EM_SETSCROLLPOS, IntPtr.Zero, ref factored);
+                    SendMessage(this.Handle, EM_GETSCROLLPOS, IntPtr.Zero, ref result);
+
+                    int loopcount = 0;
+                    int maxloop = 100;
+                    while (result.Y != original.Y)
+                    {
+                        // Adjust the input.
+                        if (result.Y > original.Y)
+                            factored.Y -= (result.Y - original.Y) / 2 - 1;
+                        else if (result.Y < original.Y)
+                            factored.Y += (original.Y - result.Y) / 2 + 1;
+
+                        // test the new input.
+                        SendMessage(this.Handle, EM_SETSCROLLPOS, IntPtr.Zero, ref factored);
+                        SendMessage(this.Handle, EM_GETSCROLLPOS, IntPtr.Zero, ref result);
+
+                        // save new factor, test for exit.
+                        loopcount++;
+                        if (loopcount >= maxloop || result.Y == original.Y)
+                        {
+                            _Yfactor = (double)factored.Y / (double)original.Y;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         #region Windows Form Designer generated code
@@ -40,8 +98,9 @@
             this.TestButton = new System.Windows.Forms.Button();
             this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
             this.Arena = new OpenTK.GLControl();
-            this.debugText = new System.Windows.Forms.RichTextBox();
+            this.debugText = new ExRichTextBox();
             this.LoadGCODEFile = new System.Windows.Forms.OpenFileDialog();
+            this.EditButton = new System.Windows.Forms.Button();
             this.tableLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel3.SuspendLayout();
@@ -70,11 +129,13 @@
             this.flowLayoutPanel1.Controls.Add(this.Draw);
             this.flowLayoutPanel1.Controls.Add(this.flowLayoutPanel3);
             this.flowLayoutPanel1.Controls.Add(this.TestButton);
+            this.flowLayoutPanel1.Controls.Add(this.EditButton);
             this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flowLayoutPanel1.Location = new System.Drawing.Point(3, 366);
             this.flowLayoutPanel1.Name = "flowLayoutPanel1";
             this.flowLayoutPanel1.Size = new System.Drawing.Size(810, 102);
             this.flowLayoutPanel1.TabIndex = 0;
+            this.flowLayoutPanel1.Paint += new System.Windows.Forms.PaintEventHandler(this.flowLayoutPanel1_Paint);
             // 
             // loadButton
             // 
@@ -200,6 +261,16 @@
             this.LoadGCODEFile.Filter = "GCODE files (*.NC)|*.NC|All files (*.*)|*.*";
             this.LoadGCODEFile.FileOk += new System.ComponentModel.CancelEventHandler(this.LoadGCODEFile_FileOk);
             // 
+            // EditButton
+            // 
+            this.EditButton.Location = new System.Drawing.Point(452, 3);
+            this.EditButton.Name = "EditButton";
+            this.EditButton.Size = new System.Drawing.Size(75, 23);
+            this.EditButton.TabIndex = 7;
+            this.EditButton.Text = "EDIT";
+            this.EditButton.UseVisualStyleBackColor = true;
+            this.EditButton.Click += new System.EventHandler(this.EditButton_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -224,7 +295,7 @@
         private System.Windows.Forms.OpenFileDialog LoadGCODEFile;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel2;
         private OpenTK.GLControl Arena;
-        public System.Windows.Forms.RichTextBox debugText;
+        public ExRichTextBox debugText;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel3;
         private System.Windows.Forms.Button FasterButton;
         private System.Windows.Forms.Button SlowerButton;
@@ -232,6 +303,8 @@
         private System.Windows.Forms.Button Draw;
         private System.Windows.Forms.Button ResetView;
         private System.Windows.Forms.Button TestButton;
+        private System.Windows.Forms.Button EditButton;
     }
+
 }
 

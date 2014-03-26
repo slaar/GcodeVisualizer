@@ -58,6 +58,11 @@ namespace CPI_TEST
         Graphics g;
         IList<double> StepLengths = new List<double>();
 
+
+        //EDIT STUFF
+        public bool EditMode = false;
+
+        //END EDIT STUFF
         public MainForm()
         {
             InitializeComponent();
@@ -138,32 +143,72 @@ namespace CPI_TEST
             debugText.AppendText("HI");
         }
 
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern int SendMessage(IntPtr hWnd, int wMsg, IntPtr wParam, ref Point lParam);
+
+        private const int WM_VSCROLL = 0x115;  //tells the control to scroll
+
+        private const int WM_GETDLGCODE = 0x87;   //sent when the caret is going out of the 'visible area' (so scroll is needed)
+
+        private const int WM_MOUSEFIRST = 0x200;  //scrolls if the mouse leaves the 'visible area' (example when you select text)
+
+        private const int EM_GETSCROLLPOS = 0x4DD;  //you send this message and the control returns it's scroll position
+
+        private const int EM_SETSCROLLPOS = 0x4DE;//this is used to set the control's scroll position
+
+
         private void debugText_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
         {
             // Declare the string to search for in the control. 
             //string searchString = "G03";
-
-            // Determine whether the user clicks the left mouse button and whether it is a double click. 
-            if (e.Clicks == 1 && e.Button == MouseButtons.Left)
+            if (!EditMode)
             {
-                // Obtain the character index where the user clicks on the control. 
-                int positionToSearch = debugText.GetCharIndexFromPosition(new Point(e.X, e.Y));
-                // Search for the search string text within the control from the point the user clicked. 
-                int LineNumber = debugText.GetLineFromCharIndex(positionToSearch);
-                int TempCounter = 0;
-                bool found = false;
-                foreach (Drawable item in Paths.ToList())
+                // Determine whether the user clicks the left mouse button and whether it is a double click. 
+                if (e.Clicks == 1 && e.Button == MouseButtons.Left)
                 {
-                    if (TempCounter == LineNumber)
+                    // Obtain the character index where the user clicks on the control. 
+                    int positionToSearch = debugText.GetCharIndexFromPosition(new Point(e.X, e.Y));
+                    // Search for the search string text within the control from the point the user clicked. 
+                    int LineNumber = debugText.GetLineFromCharIndex(positionToSearch);
+                    int TempCounter = 0;
+                    bool found = false;
+                    foreach (Drawable item in Paths.ToList())
                     {
-                        MAIN.Highlight(item);
-                        Arena.Invalidate();
-                        found = true;
-                    }
-                    TempCounter++;
-                }
+                        if (TempCounter == LineNumber)
+                        {
+                            MAIN.Highlight(item);
+                            Arena.Invalidate();
+                            found = true;
+                            IList<string> ColumnA = new List<string>();
+                            ColumnA = MAIN.ListElements();
+                            //int pos = debugText.SelectionStart;
+                            Point pos = debugText.ScrollPos;
+                            ExRichTextBox buffer = new ExRichTextBox();
 
-                //MessageBox.Show(debugText.Lines[debugText.GetLineFromCharIndex(positionToSearch)]);
+                            //debugText.Clear();
+                            buffer.Font = new Font("Consolas", debugText.Font.Size);
+                            //ColumnB = MAIN2.ListElements();
+                            for (int i = 0; i < MAIN.CountElements(); i++)
+                            {
+                                if (i == LineNumber)
+                                {
+                                    buffer.SelectionBackColor = Color.LightGreen;
+                                }
+                                buffer.AppendText(ColumnA[i]);
+                            }
+
+                            debugText.Rtf = buffer.Rtf;
+                            debugText.ScrollPos = pos;
+                        }
+                        TempCounter++;
+                    }
+
+                    //MessageBox.Show(debugText.Lines[debugText.GetLineFromCharIndex(positionToSearch)]);
+
+                }
+            }
+            else
+            {
 
             }
         }
@@ -747,6 +792,8 @@ namespace CPI_TEST
             if (LoadGCODEFile.ShowDialog() == DialogResult.OK)
             {
                 debugText.ReadOnly = true;
+                debugText.BackColor = Color.LightGray;
+
                 MoveHead(out HEAD_LOCATION, new Point3D(0, 0, 0));
                 System.IO.StreamReader file = new System.IO.StreamReader(LoadGCODEFile.FileName);
                 GCODECommands.Clear();
@@ -2280,6 +2327,26 @@ namespace CPI_TEST
                         G01(3.882F, 1.195F, 0F);
                         G01(0F, 0F, 0F);*/
         }
+
+        private void flowLayoutPanel1_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void EditButton_Click(object sender, EventArgs e)
+        {
+
+            if (!EditMode)
+            {
+                EditMode = true;
+                debugText.BackColor = Color.Pink;
+            }
+            else
+            {
+                EditMode = false;
+                debugText.BackColor = Color.LightGray;
+            }
+        }
     }
 
     public class Point3D
@@ -2717,8 +2784,8 @@ namespace CPI_TEST
 
             var AngIterate = Angstart;
 
-            var Xiterate = (double) X;
-            var Yiterate = (double) Y;
+            var Xiterate = (double)X;
+            var Yiterate = (double)Y;
 
             if (CW)
             {
@@ -2753,9 +2820,9 @@ namespace CPI_TEST
                         XMinimum = Xiterate;
                     AngIterate += DeltaAngle;
                 }
-            } 
-            
-            
+            }
+
+
             ret.Add("AngStart", Angstart);
             ret.Add("AngFinish", Angfinish);
             ret.Add("X", X);
@@ -2994,7 +3061,7 @@ namespace CPI_TEST
             GL.Vertex3(loc.X, loc.Y, loc.Z + 0.5);
             GL.End();
         }
-        public IDictionary<string,double> Offsets()
+        public IDictionary<string, double> Offsets()
         {
             IDictionary<string, double> ret = new Dictionary<string, double>();
             double XMinimum = 9999;
@@ -3023,7 +3090,7 @@ namespace CPI_TEST
                         YMinimum = a.MinY();
                     }
                 }
-                else if(item is LineSegment)
+                else if (item is LineSegment)
                 {
                     LineSegment a = (LineSegment)item;
                     if (a.MaxX() > XMaximum)
@@ -3088,18 +3155,18 @@ namespace CPI_TEST
                     TEMPARC = (Arc)item;
                     if (TEMPARC.CW) { t += "G02" + " "; }
                     else { t += "G03" + " "; }
-                    t += "X: " + TEMPARC.StartVertex.X + " Y: " + TEMPARC.StartVertex.Y + " I: " + TEMPARC.OffsetVertex.X + " J: " + TEMPARC.OffsetVertex.Y;//+ " Angle: " + String.Format("{0:G3}", TEMPARC.GetAngle()) + " Length: " + String.Format("{0:G3}", TEMPARC.GetLength() + " " + TEMPARC.incremental*/);
+                    t += "X" + TEMPARC.StartVertex.X + " Y" + TEMPARC.StartVertex.Y + " I" + TEMPARC.OffsetVertex.X + " J" + TEMPARC.OffsetVertex.Y;//+ " Angle: " + String.Format("{0:G3}", TEMPARC.GetAngle()) + " Length: " + String.Format("{0:G3}", TEMPARC.GetLength() + " " + TEMPARC.incremental*/);
 
                 }
                 else if (item is LineSegment)
                 {
                     TEMPLINE = (LineSegment)item;
-                    t += "G01" + " " + "X: " + TEMPLINE.EndVertex.X + " Y: " + TEMPLINE.EndVertex.Y + " Z: " + TEMPLINE.EndVertex.Z /*+ " length: " + TEMPLINE.GetLength()*/;
+                    t += "G01" + " " + "X" + TEMPLINE.EndVertex.X + " Y" + TEMPLINE.EndVertex.Y + " Z" + TEMPLINE.EndVertex.Z /*+ " length: " + TEMPLINE.GetLength()*/;
                 }
                 else if (item is HeadMotion)
                 {
                     HM = (HeadMotion)item;
-                    t += "G00" + " " + "X: " + HM.EndVertex.X + " Y: " + HM.EndVertex.Y + " Z: " + HM.EndVertex.Z/* + " length: " + HM.GetLength()*/;
+                    t += "G00" + " " + "X" + HM.EndVertex.X + " Y" + HM.EndVertex.Y + " Z" + HM.EndVertex.Z/* + " length: " + HM.GetLength()*/;
                 }
                 ret.Add(t += "\n");
             }
