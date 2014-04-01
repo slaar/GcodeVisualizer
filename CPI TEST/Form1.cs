@@ -143,18 +143,6 @@ namespace CPI_TEST
             debugText.AppendText("HI");
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern int SendMessage(IntPtr hWnd, int wMsg, IntPtr wParam, ref Point lParam);
-
-        private const int WM_VSCROLL = 0x115;  //tells the control to scroll
-
-        private const int WM_GETDLGCODE = 0x87;   //sent when the caret is going out of the 'visible area' (so scroll is needed)
-
-        private const int WM_MOUSEFIRST = 0x200;  //scrolls if the mouse leaves the 'visible area' (example when you select text)
-
-        private const int EM_GETSCROLLPOS = 0x4DD;  //you send this message and the control returns it's scroll position
-
-        private const int EM_SETSCROLLPOS = 0x4DE;//this is used to set the control's scroll position
 
 
         private void debugText_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
@@ -177,7 +165,7 @@ namespace CPI_TEST
                         if (TempCounter == LineNumber)
                         {
                             MAIN.Highlight(item);
-                            Arena.Invalidate();
+                            //Arena.Invalidate();
                             found = true;
                             IList<string> ColumnA = new List<string>();
                             ColumnA = MAIN.ListElements();
