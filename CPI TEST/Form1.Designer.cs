@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
-namespace CPI_TEST
+namespace GcodeVisualizer
 {
     partial class MainForm
     {
@@ -109,11 +109,13 @@ namespace CPI_TEST
             this.BackUp = new System.Windows.Forms.Button();
             this.ResetView = new System.Windows.Forms.Button();
             this.TestButton = new System.Windows.Forms.Button();
+            this.EditButton = new System.Windows.Forms.Button();
+            this.InvertX = new System.Windows.Forms.CheckBox();
+            this.InvertY = new System.Windows.Forms.CheckBox();
             this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
             this.Arena = new OpenTK.GLControl();
-            this.debugText = new ExRichTextBox();
+            this.debugText = new GcodeVisualizer.MainForm.ExRichTextBox();
             this.LoadGCODEFile = new System.Windows.Forms.OpenFileDialog();
-            this.EditButton = new System.Windows.Forms.Button();
             this.tableLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel3.SuspendLayout();
@@ -143,6 +145,8 @@ namespace CPI_TEST
             this.flowLayoutPanel1.Controls.Add(this.flowLayoutPanel3);
             this.flowLayoutPanel1.Controls.Add(this.TestButton);
             this.flowLayoutPanel1.Controls.Add(this.EditButton);
+            this.flowLayoutPanel1.Controls.Add(this.InvertX);
+            this.flowLayoutPanel1.Controls.Add(this.InvertY);
             this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flowLayoutPanel1.Location = new System.Drawing.Point(3, 366);
             this.flowLayoutPanel1.Name = "flowLayoutPanel1";
@@ -233,6 +237,38 @@ namespace CPI_TEST
             this.TestButton.UseVisualStyleBackColor = true;
             this.TestButton.Click += new System.EventHandler(this.TestButton_Click);
             // 
+            // EditButton
+            // 
+            this.EditButton.Location = new System.Drawing.Point(452, 3);
+            this.EditButton.Name = "EditButton";
+            this.EditButton.Size = new System.Drawing.Size(75, 23);
+            this.EditButton.TabIndex = 7;
+            this.EditButton.Text = "EDIT";
+            this.EditButton.UseVisualStyleBackColor = true;
+            this.EditButton.Click += new System.EventHandler(this.EditButton_Click);
+            // 
+            // InvertX
+            // 
+            this.InvertX.AutoSize = true;
+            this.InvertX.Location = new System.Drawing.Point(533, 3);
+            this.InvertX.Name = "InvertX";
+            this.InvertX.Size = new System.Drawing.Size(60, 17);
+            this.InvertX.TabIndex = 8;
+            this.InvertX.Text = "InvertX";
+            this.InvertX.UseVisualStyleBackColor = true;
+            this.InvertX.CheckedChanged += new System.EventHandler(this.InvertX_CheckedChanged);
+            // 
+            // InvertY
+            // 
+            this.InvertY.AutoSize = true;
+            this.InvertY.Location = new System.Drawing.Point(599, 3);
+            this.InvertY.Name = "InvertY";
+            this.InvertY.Size = new System.Drawing.Size(63, 17);
+            this.InvertY.TabIndex = 9;
+            this.InvertY.Text = "Invert Y";
+            this.InvertY.UseVisualStyleBackColor = true;
+            this.InvertY.CheckedChanged += new System.EventHandler(this.InvertY_CheckedChanged);
+            // 
             // flowLayoutPanel2
             // 
             this.flowLayoutPanel2.Controls.Add(this.Arena);
@@ -263,6 +299,7 @@ namespace CPI_TEST
             // 
             this.debugText.Location = new System.Drawing.Point(426, 3);
             this.debugText.Name = "debugText";
+            this.debugText.ScrollPos = new System.Drawing.Point(0, 0);
             this.debugText.Size = new System.Drawing.Size(375, 348);
             this.debugText.TabIndex = 1;
             this.debugText.Text = "";
@@ -274,16 +311,6 @@ namespace CPI_TEST
             this.LoadGCODEFile.Filter = "GCODE files (*.NC)|*.NC|All files (*.*)|*.*";
             this.LoadGCODEFile.FileOk += new System.ComponentModel.CancelEventHandler(this.LoadGCODEFile_FileOk);
             // 
-            // EditButton
-            // 
-            this.EditButton.Location = new System.Drawing.Point(452, 3);
-            this.EditButton.Name = "EditButton";
-            this.EditButton.Size = new System.Drawing.Size(75, 23);
-            this.EditButton.TabIndex = 7;
-            this.EditButton.Text = "EDIT";
-            this.EditButton.UseVisualStyleBackColor = true;
-            this.EditButton.Click += new System.EventHandler(this.EditButton_Click);
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -291,9 +318,10 @@ namespace CPI_TEST
             this.ClientSize = new System.Drawing.Size(816, 471);
             this.Controls.Add(this.tableLayoutPanel1);
             this.Name = "MainForm";
-            this.Text = "CPI Test";
+            this.Text = "GCode Visualizer";
             this.tableLayoutPanel1.ResumeLayout(false);
             this.flowLayoutPanel1.ResumeLayout(false);
+            this.flowLayoutPanel1.PerformLayout();
             this.flowLayoutPanel3.ResumeLayout(false);
             this.flowLayoutPanel2.ResumeLayout(false);
             this.ResumeLayout(false);
@@ -317,6 +345,8 @@ namespace CPI_TEST
         private System.Windows.Forms.Button ResetView;
         private System.Windows.Forms.Button TestButton;
         private System.Windows.Forms.Button EditButton;
+        private System.Windows.Forms.CheckBox InvertX;
+        private System.Windows.Forms.CheckBox InvertY;
     }
 
 }

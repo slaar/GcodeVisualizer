@@ -16,8 +16,9 @@ using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using EXT;
 
-namespace CPI_TEST
+namespace GcodeVisualizer
 {
 
     public partial class MainForm : Form
@@ -33,7 +34,8 @@ namespace CPI_TEST
         public float currentY;
         public float currentZ;
         public int speed = 1;
-
+        bool INVERTX = false;
+        bool INVERTY = false;
         //CAMERA CONTROL STUFF
         bool adjusting_camera = false;
         Point3D RotationAxis = new Point3D(0, 0, 0);
@@ -197,7 +199,49 @@ namespace CPI_TEST
             }
             else
             {
-
+                if (e.Clicks == 1 && e.Button == MouseButtons.Left)
+                {
+                    // Obtain the character index where the user clicks on the control. 
+                    int positionToSearch = debugText.GetCharIndexFromPosition(new Point(e.X, e.Y));
+                    // Search for the search string text within the control from the point the user clicked. 
+                    int LineNumber = debugText.GetLineFromCharIndex(positionToSearch);
+                    if (LineNumber > 0)
+                    {
+                        EditForm E = new EditForm(debugText.Lines[LineNumber],Paths[LineNumber-1]);
+                        DialogResult dialogResult = E.ShowDialog(this);
+                        if (dialogResult == DialogResult.OK)
+                        {
+                            Paths[LineNumber] = HandleGCODE(E.EditTextBox.Text,Paths[LineNumber-1]);
+                            ToggleEdit();
+                            //get user/password values from dialog
+                        }
+                        //Point3D EP = EndPoint(Paths[LineNumber - 1]);
+                        //Paths[LineNumber] = new LineSegment(EP, new Point3D(1, 0, 0));
+                    }
+                    //MessageBox.Show("You clicked " + LineNumber);
+                    MainForm.animating = false;
+                    MAIN = new Sculpture(Paths);
+                    MAINLoaded = true;
+                    //Paths.Clear();
+                    //DrawSmile();
+                    //Sculpture MAIN2 = new Sculpture(Paths);
+                    //MAIN = new Sculpture(Paths);
+                    IList<string> ColumnA = new List<string>();
+                    //IList<string> ColumnB = new List<string>();
+                    foreach (Drawable item in Paths)
+                    {
+                        StepLengths.Add(item.GetLength());
+                    }
+                    double TotalDisplayLength = StepLengths.Aggregate((a, b) => b + a);
+                    ColumnA = MAIN.ListElements();
+                    debugText.Clear();
+                    debugText.Font = new Font("Consolas", debugText.Font.Size);
+                    //ColumnB = MAIN2.ListElements();
+                    for (int i = 0; i < MAIN.CountElements(); i++)
+                    {
+                        debugText.AppendText(ColumnA[i]);
+                    }
+                }
             }
         }
 
@@ -207,7 +251,29 @@ namespace CPI_TEST
             var exponent = Math.Pow(2.0, random.Next(-126, 128));
             return (float)(mantissa * exponent);
         }
-
+        public Point3D EndPoint(Drawable item)
+        {
+            if (item is HeadMotion)
+            {
+                HeadMotion a = (HeadMotion)item;
+                return a.EndVertex;
+            }
+            else if (item is LineSegment)
+            {
+                LineSegment a = (LineSegment)item;
+                return a.EndVertex;
+            }
+            else if (item is Arc)
+            {
+                Arc a = (Arc)item;
+                return a.EndVertex;
+            }
+            else
+            {
+                MessageBox.Show("Somehow EndPoint() received a non-drawable.");
+                return new Point3D(0, 0, 0);
+            }
+        }
         private void Arena_Paint(object sender, PaintEventArgs e)
         {
             if (!loaded)
@@ -313,6 +379,14 @@ namespace CPI_TEST
 
         private void G01(float x, float y, float z)
         {
+            if (INVERTX)
+            {
+                x = -x;
+            }
+            if (INVERTY)
+            {
+                y = -y;
+            }
             Paths.Add(new LineSegment(HEAD_LOCATION, new Point3D(x, y, z), Color.Gray));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, z));
         }
@@ -323,6 +397,16 @@ namespace CPI_TEST
             //throw new Exception("X: " + x + " HX: " + HEAD_LOCATION.X);
             if (HEAD_LOCATION.X == x && HEAD_LOCATION.Y == y)
                 return false;
+            if (INVERTX)
+            {
+                x = -x;
+                //i = -i;
+            }
+            if (INVERTY)
+            {
+                y = -y;
+                //j = -j;
+            }
             Paths.Add(new Arc(HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z), new Point3D(i, j, HEAD_LOCATION.Z), 'Z', true, incremental));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z));
             if (prev < Paths.Count())
@@ -336,6 +420,16 @@ namespace CPI_TEST
             var prev = Paths.Count();
             Paths.Add(new Arc(HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z), new Point3D(i, j, HEAD_LOCATION.Z), 'Z', false, incremental));
             MoveHead(out HEAD_LOCATION, new Point3D(x, y, HEAD_LOCATION.Z));
+            if (INVERTX)
+            {
+                x = -x;
+                //i = -i;
+            }
+            if (INVERTY)
+            {
+                y = -y;
+                //j = -j;
+            }
             if (prev < Paths.Count())
                 return true;
             else
@@ -784,6 +878,7 @@ namespace CPI_TEST
 
                 MoveHead(out HEAD_LOCATION, new Point3D(0, 0, 0));
                 System.IO.StreamReader file = new System.IO.StreamReader(LoadGCODEFile.FileName);
+                this.Text = "GCode Visualizer - " + LoadGCODEFile.FileName;
                 GCODECommands.Clear();
                 string line;
                 IList<string> parsedLine;
@@ -1055,6 +1150,204 @@ namespace CPI_TEST
                     //debugText.AppendText(which + " " + x + " " + y + " " + z + " " + args["I"] + " " + args["J"] + "\n");
                 }
             }
+            //debugText.Clear();
+            //drawArea.Image = null;
+
+            /* FOR LATER
+            int local_index = 0;
+            foreach (KeyValuePair<int, IList<string>> entry in TempCodes)
+            {
+                red = false;
+                string entryValue = entry.Key.ToString() + ": ";
+                foreach (string command in entry.Value)
+                {
+                    entryValue += command + " ";
+                }
+                if (local_index <= index)
+                {
+                    debugText.SelectionColor = Color.Red;
+                    if (local_index == index)
+                    {
+                        red = true;
+                    }
+                    ExecuteGCODE(g, which, args, red);
+                }
+                else
+                {
+                    debugText.SelectionColor = Color.Black;
+                }
+
+                debugText.AppendText(entryValue + "\n");
+                local_index++;
+            }
+            */
+
+            //debugText.AppendText("Executed up to command " + index + "\n");
+
+            //debugText.AppendText(local_index.ToString() + " " + index.ToString());
+        }
+        private Drawable HandleGCODE(string line, Drawable prev)
+        {
+            string which = "";
+            float xComponent;
+            float yComponent;
+            float zComponent;
+            float iComponent;
+            float jComponent;
+            float kComponent;
+            var cmd = line.Split(' ').ToList<string>();
+            var CommentMarker = cmd.IndexOf(";");
+            var OpenParen = cmd.IndexOf("(");
+            var CloseParen = cmd.IndexOf(")");
+            int index = this.index;
+            Drawable PreviousElement = prev;
+            var HL = PreviousElement.GetEndVertex();
+
+            Dictionary<string, float> args = new Dictionary<string, float>();
+            foreach (var bit in cmd)
+            {
+                if (bit.Count() > 0 && (CommentMarker < 0 || cmd.IndexOf(bit) < CommentMarker) && (OpenParen < 0 || cmd.IndexOf(bit) < OpenParen))
+                {
+                    if (bit[0] == 'X')
+                    {
+                        xComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("X", xComponent);
+                    }
+                    else if (bit[0] == 'Y')
+                    {
+                        yComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("Y", yComponent);
+                    }
+                    else if (bit[0] == 'Z')
+                    {
+                        zComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("Z", zComponent);
+                    }
+                    else if (bit[0] == 'I')
+                    {
+                        iComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("I", iComponent);
+                    }
+                    else if (bit[0] == 'J')
+                    {
+                        jComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("J", jComponent);
+                    }
+                    else if (bit[0] == 'K')
+                    {
+                        kComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
+                        args.Add("K", kComponent);
+                    }
+                    else if (bit[0] == 'G' && (bit[1] == '0' || bit[1] == '1' || bit[1] == '2' || bit[1] == '3'))
+                    {
+                        which = bit;
+                    }
+                    else if (bit == "G90")
+                        incremental = false;  //this is true but you know how it is
+                    else if (bit == "G91")
+                        incremental = true;  //this is true but you know how it is
+                }
+            }
+            if (which == "")
+            {
+                which = LastWhich;
+            }
+            if (which == "G00" || which == "G0")
+            {
+                LastWhich = "G00";
+                float x, y, z;
+                x = HL.X; y = HL.Y; z = HL.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                return new HeadMotion(HL, new Point3D(x, y, z));
+                //G00(x, y, z);  //Z-PROBLEM
+                //debugText.AppendText(which + " " + x + " " + y + " " + z + "\n");
+
+            }
+            else if (which == "G01" || which == "G1")
+            {
+                LastWhich = "G01";
+                float x, y, z;
+                x = HL.X; y = HL.Y; z = HL.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                return new LineSegment(HL, new Point3D(x, y, z));
+                //G01(x, y, z);  //Z-PROBLEM
+                //debugText.AppendText(which + " " + x + " " + y + " " + z + "\n");
+            }
+            else if (which == "G02" || which == "G2")
+            {
+                LastWhich = "G02";
+                float x, y, z, i, j, k;
+                x = HL.X; y = HL.Y; z = HL.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
+                {
+                    //Arc NI = new Arc(OI.StartVertex, OI.EndVertex, OI.OffsetVertex, OI.Axis, OI.CW, OI.incremental);
+
+                    return new Arc(HL, new Point3D(x, y, z), new Point3D(args["I"], args["J"], z), 'Z', true, incremental);
+                    //G02(x, y, args["I"], args["J"]);
+                }
+            }
+            else if (which == "G03" || which == "G3")
+            {
+                LastWhich = "G03";
+                float x, y, z, i, j, k;
+                x = HL.X;
+                y = HL.Y;
+                z = HL.Z;
+                if (args.ContainsKey("X"))
+                {
+                    x = args["X"];
+                }
+                if (args.ContainsKey("Y"))
+                {
+                    y = args["Y"];
+                }
+                if (args.ContainsKey("Z"))
+                {
+                    z = args["Z"];
+                }
+                if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
+                {
+                    //Arc NI = new Arc(OI.StartVertex, OI.EndVertex, OI.OffsetVertex, OI.Axis, OI.CW, OI.incremental);
+
+                    return new Arc(HL, new Point3D(x, y, z), new Point3D(args["I"], args["J"], z), 'Z', false, incremental);
+                    //G02(x, y, args["I"], args["J"]);
+                }
+            }
+            return new Drawable();
             //debugText.Clear();
             //drawArea.Image = null;
 
@@ -1403,8 +1696,8 @@ namespace CPI_TEST
 
         private void TestButton_Click(object sender, EventArgs e)
         {
-            IDictionary<string, double> off = MAIN.Offsets();
-            MessageBox.Show(off["XMinimum"] + " " + off["XMaximum"] + off["YMinimum"] + " " + off["YMaximum"]);
+            //IDictionary<string, double> off = MAIN.Offsets();
+            //MessageBox.Show(off["XMinimum"] + " " + off["XMaximum"] + off["YMinimum"] + " " + off["YMaximum"]);
             //SetupViewport(-50, -50);
             /*
             incremental = true;
@@ -2320,10 +2613,8 @@ namespace CPI_TEST
         {
 
         }
-
-        private void EditButton_Click(object sender, EventArgs e)
+        private void ToggleEdit()
         {
-
             if (!EditMode)
             {
                 EditMode = true;
@@ -2334,9 +2625,58 @@ namespace CPI_TEST
                 EditMode = false;
                 debugText.BackColor = Color.LightGray;
             }
+
+        }
+        private void EditButton_Click(object sender, EventArgs e)
+        {
+            ToggleEdit();
+        }
+
+        private void InvertX_CheckedChanged(object sender, EventArgs e)
+        {
+            INVERTX = !INVERTX;
+            ResetDrawing();
+        }
+
+        private void InvertY_CheckedChanged(object sender, EventArgs e)
+        {
+            INVERTY = !INVERTY;
+            ResetDrawing();
+        }
+        private void ResetDrawing()
+        {
+            IList<Drawable> t= new List<Drawable>();
+            foreach (var item in Paths)
+            {
+                t.Add(item);
+            }
+            Paths.Clear();
+            MoveHead(out HEAD_LOCATION, new Point3D(0,0,0));
+            foreach (var item in t)
+            {
+                if (item is HeadMotion)
+                {
+                    HeadMotion a = (HeadMotion)item;
+                    G00(a.EndVertex.X, a.EndVertex.Z, a.EndVertex.Z);
+                }
+                if (item is LineSegment)
+                {
+                    LineSegment a = (LineSegment)item;
+                    G01(a.EndVertex.X, a.EndVertex.Z, a.EndVertex.Z);
+                }
+                if (item is Arc)
+                {
+                    Arc a = (Arc)item;
+                    if(a.CW)
+                        G02(a.EndVertex.X, a.EndVertex.Y, a.OffsetVertex.X, a.OffsetVertex.Y);
+                    else
+                        G03(a.EndVertex.X, a.EndVertex.Y, a.OffsetVertex.X, a.OffsetVertex.Y);
+                }
+            }
+            Arena.Invalidate();
+            MAIN = new Sculpture(Paths);
         }
     }
-
     public class Point3D
     {
         public float X { get; set; }
@@ -2395,6 +2735,9 @@ namespace CPI_TEST
             }
             return false;
         }
+        public Point3D StartVertex { get; set; }
+        public Point3D EndVertex { get; set; }
+        public virtual Point3D GetEndVertex() { return new Point3D(0, 0, 0); }
     }
 
     public class Dot : Drawable
@@ -2416,6 +2759,10 @@ namespace CPI_TEST
         public Point3D StartVertex { get; set; }
         public Point3D EndVertex { get; set; }
         public System.Drawing.Color dColor = Color.Gray;
+        public override Point3D GetEndVertex()
+        {
+            return EndVertex;
+        }
         public LineSegment() { }
         public LineSegment(float x1, float y1, float z1, float x2, float y2, float z2)
         {
@@ -2508,7 +2855,10 @@ namespace CPI_TEST
         public Point3D EndVertex { get; set; }
         public System.Drawing.Color dColor = Color.Wheat;
         public bool HighLight;
-
+        public override Point3D GetEndVertex()
+        {
+            return EndVertex;
+        }
         public HeadMotion() { }
         public HeadMotion(float x1, float y1, float z1, float x2, float y2, float z2)
         {
@@ -2602,6 +2952,10 @@ namespace CPI_TEST
         public char Axis { get; set; }
         public bool CW { get; set; }
         public bool incremental { get; set; }
+        public override Point3D GetEndVertex()
+        {
+            return EndVertex;
+        }
         public Arc() { }
 
         public Arc(Point3D Start, Point3D End, Point3D Offset, char axis, bool clockwise) //Start = HEAD_LOCATION basically always
@@ -3161,6 +3515,69 @@ namespace CPI_TEST
             return ret;
 
         }
+        public void EditEntry(Drawable item)
+        {
+            /*animals.RemoveAt(2);
+              animals.Insert(2, "snail");*/
+            if (PinkElement >= 0)
+            {
+                Drawable OldItem = Elements[PinkElement];
+                if (OldItem is HeadMotion)
+                {
+                    HeadMotion OI = (HeadMotion)OldItem;
+                    HeadMotion NI = new HeadMotion(OI.StartVertex, OI.EndVertex);
+                    Elements[PinkElement] = NI;
+                    //.RemoveAt(PinkElement);
+                    //Elements.Insert(PinkElement, NI);
+                }
+                if (OldItem is LineSegment)
+                {
+                    LineSegment OI = (LineSegment)OldItem;
+                    LineSegment NI = new LineSegment(OI.StartVertex, OI.EndVertex);
+                    Elements[PinkElement] = NI;
+                }
+                if (OldItem is Arc)
+                {
+                    Arc OI = (Arc)OldItem;
+                    Arc NI = new Arc(OI.StartVertex, OI.EndVertex, OI.OffsetVertex, OI.Axis, OI.CW, OI.incremental);
+                    Elements[PinkElement] = NI;
+                }
+            }
+            int index = -1;
+            foreach (Drawable thing in Elements)
+            {
+                if (thing.IsEqualTo(item))
+                {
+                    index = Elements.IndexOf(thing);
+                }
+            }
+            if (index >= 0)
+            {
+                System.Drawing.Color HColor = Color.Red;
+                Drawable ToBeHighlighted = Elements[index];
+                if (ToBeHighlighted is HeadMotion)
+                {
+                    HeadMotion HM = (HeadMotion)ToBeHighlighted;
+                    HeadMotion Highlighted = new HeadMotion(HM.StartVertex, HM.EndVertex, HColor);
+                    Elements[index] = Highlighted;
+                    PinkElement = index;
+                }
+                else if (ToBeHighlighted is LineSegment)
+                {
+                    LineSegment HM = (LineSegment)ToBeHighlighted;
+                    LineSegment Highlighted = new LineSegment(HM.StartVertex, HM.EndVertex, HColor);
+                    Elements[index] = Highlighted;
+                    PinkElement = index;
+                }
+                else if (ToBeHighlighted is Arc)
+                {
+                    Arc HM = (Arc)ToBeHighlighted;
+                    Arc Highlighted = new Arc(HM.StartVertex, HM.EndVertex, HM.OffsetVertex, HM.Axis, HM.CW, HM.incremental, HColor);
+                    Elements[index] = Highlighted;
+                    PinkElement = index;
+                }
+            }
+        }
         public void Highlight(Drawable item)
         {
             /*animals.RemoveAt(2);
@@ -3284,5 +3701,15 @@ namespace CPI_TEST
             return ret;
         }
 
+    }
+}
+namespace EXT
+{
+    public static class Extensions
+    {
+        public static void Toggle(this bool b)
+        {
+            b = !b;
+        }
     }
 }
