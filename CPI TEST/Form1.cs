@@ -483,7 +483,7 @@ namespace GcodeVisualizer
                 while ((line = file.ReadLine()) != null)
                 {
                     //if (line[0] == 'G')
-                    {
+                    {line.Split(' ').ToList<string>();
                         parsedLine = line.Split(' ').ToList<string>();
                         var debugNum = counter.ToString();
                         //debugText.Text = debugNum;
@@ -589,14 +589,16 @@ namespace GcodeVisualizer
             float iComponent;
             float jComponent;
             float kComponent;
-            var CommentMarker = cmd.IndexOf(";");
-            var OpenParen = cmd.IndexOf("(");
-            var CloseParen = cmd.IndexOf(")");
+            string[] array = cmd.ToArray();
+            string TempForIndices = string.Join(" ", array);
+            var CommentMarker = TempForIndices.IndexOf(";");
+            var OpenParen = TempForIndices.IndexOf("(");
+            var CloseParen = TempForIndices.IndexOf(")");
             int index = this.index;
             Dictionary<string, float> args = new Dictionary<string, float>();
             foreach (var bit in cmd)
             {
-                if (bit.Count() > 0 && (CommentMarker < 0 || cmd.IndexOf(bit) < CommentMarker) && (OpenParen < 0 || cmd.IndexOf(bit) < OpenParen))
+                if (bit.Count() > 0 && (CommentMarker < 0 || TempForIndices.IndexOf(bit) < CommentMarker) && (OpenParen < 0 || TempForIndices.IndexOf(bit) < OpenParen))
                 {
                     int Endpoint = bit.Length-1;
                     if (bit.IndexOf(';') > 0)
@@ -605,34 +607,38 @@ namespace GcodeVisualizer
                     }
                     if (bit[0] == 'X')
                     {
+                        if (float.TryParse(bit.Substring(1, Endpoint), out xComponent))
+                            args.Add("X", xComponent);
+                        /*
                         xComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
                         args.Add("X", xComponent);
+                    */
                     }
                     else if (bit[0] == 'Y')
                     {
-                        yComponent = float.Parse(bit.Substring(1,Endpoint), CultureInfo.InvariantCulture.NumberFormat);
-                        args.Add("Y", yComponent);
+                        if(float.TryParse(bit.Substring(1,Endpoint), out yComponent))
+                            args.Add("Y", yComponent);
                     }
                     else if (bit[0] == 'Z')
                     {
-                        zComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                        args.Add("Z", zComponent);
+                        if (float.TryParse(bit.Substring(1, Endpoint), out zComponent))
+                            args.Add("Z", zComponent);
                     }
                     else if (bit[0] == 'I')
                     {
                         if (bit == "If") continue;
-                        iComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                        args.Add("I", iComponent);
+                        if (float.TryParse(bit.Substring(1, Endpoint), out iComponent))
+                            args.Add("I", iComponent);
                     }
                     else if (bit[0] == 'J')
                     {
-                        jComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                        args.Add("J", jComponent);
+                        if (float.TryParse(bit.Substring(1, Endpoint), out jComponent))
+                            args.Add("J", jComponent);
                     }
                     else if (bit[0] == 'K')
                     {
-                        kComponent = float.Parse(bit.Substring(1), CultureInfo.InvariantCulture.NumberFormat);
-                        args.Add("K", kComponent);
+                        if (float.TryParse(bit.Substring(1, Endpoint), out kComponent))
+                            args.Add("K", kComponent);
                     }
                     else if (bit[0] == 'G' && (bit[1] == '0' || bit[1] == '1' || bit[1] == '2' || bit[1] == '3'))
                     {
@@ -1302,16 +1308,19 @@ namespace GcodeVisualizer
 
         private void TestButton_Click(object sender, EventArgs e)
         {
-            if (LASER_ON)
+            var TestInput = ";Part No.: ZO18-135-090X";
+            var cmd = TestInput.Split(' ').ToList<string>();
+            var CommentMarker = TestInput.IndexOf(";");
+            var OpenParen = cmd.IndexOf("(");
+            var CloseParen = cmd.IndexOf(")");
+            int index = this.index;
+            Dictionary<string, float> args = new Dictionary<string, float>();
+            string output = "";
+            foreach (var bit in cmd)
             {
-                MessageBox.Show("It Is On");
-                LASER_ON = false;
+                output = output + bit + " " + TestInput.IndexOf(bit) + " " + CommentMarker + "\n";
             }
-            else
-            {
-                MessageBox.Show("It Is Off");
-                LASER_ON = true;
-            }
+            MessageBox.Show(output);
         }
 
         private void flowLayoutPanel1_Paint(object sender, PaintEventArgs e)
