@@ -654,7 +654,7 @@ namespace GcodeVisualizer
                         LASER_ON = false;
                 }
             }
-            if (which == "")
+            if (which == "" && (LastWhich =="G1" || LastWhich =="G0" || LastWhich =="G01" || LastWhich =="G00"))
             {
                 which = LastWhich;
             }
@@ -666,10 +666,14 @@ namespace GcodeVisualizer
                 if (args.ContainsKey("X"))
                 {
                     x = args["X"];
+                    if (incremental)
+                        x += HEAD_LOCATION.X;
                 }
                 if (args.ContainsKey("Y"))
                 {
                     y = args["Y"];
+                    if (incremental)
+                        y += HEAD_LOCATION.Y;
                 }
                 if (args.ContainsKey("Z"))
                 {
@@ -690,10 +694,14 @@ namespace GcodeVisualizer
                 if (args.ContainsKey("X"))
                 {
                     x = args["X"];
+                    if (incremental)
+                        x += HEAD_LOCATION.X;
                 }
                 if (args.ContainsKey("Y"))
                 {
                     y = args["Y"];
+                    if (incremental)
+                        y += HEAD_LOCATION.Y;
                 }
                 if (args.ContainsKey("Z"))
                 {
@@ -712,20 +720,24 @@ namespace GcodeVisualizer
                 if (args.ContainsKey("X"))
                 {
                     x = args["X"];
+                   if (incremental)            x += HEAD_LOCATION.X;
                 }
                 if (args.ContainsKey("Y"))
                 {
                     y = args["Y"];
+                   if (incremental)               y += HEAD_LOCATION.Y;
                 }
                 if (args.ContainsKey("Z"))
                 {
                     z = args["Z"];
                 }
+                i = args["I"];
+                j = args["J"];
                 if ((x == HEAD_LOCATION.X) && (y == HEAD_LOCATION.Y) && (z == HEAD_LOCATION.Z))
                     return;
                 else if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
                 {
-                    G02(x, y, args["I"], args["J"]);
+                    G02(x, y, i, j);
                 }
             }
             else if (which == "G03" || which == "G3")
@@ -738,20 +750,24 @@ namespace GcodeVisualizer
                 if (args.ContainsKey("X"))
                 {
                     x = args["X"];
+                    if (incremental) x += HEAD_LOCATION.X;
                 }
                 if (args.ContainsKey("Y"))
                 {
                     y = args["Y"];
+                    if (incremental) y += HEAD_LOCATION.Y;
                 }
                 if (args.ContainsKey("Z"))
                 {
                     z = args["Z"];
                 }
+                i = args["I"];
+                j = args["J"];
                 if ((x == HEAD_LOCATION.X) && (y == HEAD_LOCATION.Y) && (z == HEAD_LOCATION.Z))
                     return;
                 else if ((args.ContainsKey("I")) && (args.ContainsKey("J")))
                 {
-                    if (G03(x, y, args["I"], args["J"]))
+                    if (G03(x, y, i, j))
                     {
                         //debugText.AppendText("G03 added\n");
                     }
@@ -1308,19 +1324,10 @@ namespace GcodeVisualizer
 
         private void TestButton_Click(object sender, EventArgs e)
         {
-            var TestInput = ";Part No.: ZO18-135-090X";
-            var cmd = TestInput.Split(' ').ToList<string>();
-            var CommentMarker = TestInput.IndexOf(";");
-            var OpenParen = cmd.IndexOf("(");
-            var CloseParen = cmd.IndexOf(")");
-            int index = this.index;
-            Dictionary<string, float> args = new Dictionary<string, float>();
-            string output = "";
-            foreach (var bit in cmd)
-            {
-                output = output + bit + " " + TestInput.IndexOf(bit) + " " + CommentMarker + "\n";
-            }
-            MessageBox.Show(output);
+            Paths.Add(new LineSegment(new Point3D(0,0,0),new Point3D(1, 0, 0)));
+            Paths.Add(new Arc(new Point3D(1, 0, 0), new Point3D(0.5f, 0.5f, 0), new Point3D(-0.5f, 0, 0), 'Z', false));
+            MAIN = new Sculpture(Paths);
+            MAINLoaded = true;
         }
 
         private void flowLayoutPanel1_Paint(object sender, PaintEventArgs e)
@@ -1736,13 +1743,16 @@ namespace GcodeVisualizer
             //G01(3.8755F, 0.9929F, 0.0F);
             //G03(3.9006F, 1.1047F, -0.2619F, 0.0F);
 
-            if (incremental)
-            {
+            
+            //if (incremental)
+            //{
                 //Xcode += X;
                 //Ycode += Y;
                 Icode += X;                 //icode = -0.2619 + 3.8755 = 3.6136
                 Jcode += Y;                 //jcode = 0 + 0.9929 = 0.9929
-            }
+            //}
+
+
             Xoffset = X - Icode;            //XOFFSET = 3.8755 - (3.6136) 0.2619
             Yoffset = Y - Jcode;            //YOFFSET = 0.9929 - 0.9929 = 0.0
             //X3.8948 Y1.1597 I-.2619 J0.
